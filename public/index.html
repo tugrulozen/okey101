@@ -2,12 +2,27 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Online 101 Okey - VIP Masa & Sohbet</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Area51 Okey</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+    <script>MobileDragDrop.polyfill({dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride});</script>
+
     <style>
-        body { background-color: #050505; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;}
+        body { background-color: #050505; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; touch-action: pan-x pan-y;}
         
+        #dondur-uyari { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 9999; color: #d4af37; justify-content: center; align-items: center; font-size: 24px; text-align: center; flex-direction: column; }
+        .rotate-icon { font-size: 50px; margin-bottom: 20px; animation: rotatePhone 2s infinite; }
+        @keyframes rotatePhone { 0% { transform: rotate(0deg); } 50% { transform: rotate(-90deg); } 100% { transform: rotate(-90deg); } }
+        
+        @media screen and (max-width: 768px) and (orientation: portrait) {
+            #dondur-uyari { display: flex; }
+            #oyun-wrapper, #giris-ekrani, #hub-ekrani, #bitis-ekrani { display: none !important; }
+        }
+
         .tam-ekran { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
-        .kutu { background: #1e1e1e; padding: 40px; border-radius: 15px; text-align: center; border: 2px solid #d4af37; box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); width: 400px;}
+        .kutu { background: #1e1e1e; padding: 40px; border-radius: 15px; text-align: center; border: 2px solid #d4af37; box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); width: 400px; max-width: 90vw;}
         .kutu h1, .kutu h2 { margin-top: 0; color: #d4af37; font-weight: 300; letter-spacing: 2px;}
         .kutu input { width: 80%; padding: 12px; font-size: 18px; border-radius: 8px; border: 1px solid #444; background: #111; color: white; margin-bottom: 20px; outline: none; text-align: center; font-weight: bold;}
         
@@ -20,34 +35,30 @@
         .btn-kirmizi { background: #c0392b; color: white; border: none; padding: 6px 15px; font-size: 13px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.5);}
         .btn-kirmizi:hover { background: #a53125; }
 
-        #oyun-wrapper { display: none; justify-content: center; align-items: center; width: 100vw; height: 100vh; gap: 30px; box-sizing: border-box; }
+        #oyun-wrapper { display: none; justify-content: flex-start; align-items: center; width: 100vw; height: 100vh; gap: 20px; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; flex-direction: column; padding: 20px 0;}
 
         #masa-container { 
             width: 1350px; height: 750px; background: radial-gradient(circle at center, #2a2c30 0%, #0d0d0f 100%);
             position: relative; border-radius: 40px; box-shadow: inset 0 0 80px rgba(0,0,0,0.9), 0 20px 50px rgba(0,0,0,0.8); 
             border: 12px solid #1a1a1a; display: flex; flex-direction: column; justify-content: space-between; 
+            transform-origin: top center; flex-shrink: 0;
         }
         #masa-container::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border: 1px solid rgba(255,255,255,0.05); border-radius: 30px; pointer-events: none;}
 
         #chat-container {
-            width: 320px; height: 680px;
+            width: 90%; max-width: 1350px; height: 250px;
             background: radial-gradient(circle at top, #2a2c30 0%, #0d0d0f 100%);
-            border: 6px solid #1a1a1a; border-radius: 50px;
+            border: 6px solid #1a1a1a; border-radius: 30px;
             display: flex; flex-direction: column; position: relative;
             box-shadow: inset 0 0 40px rgba(0,0,0,0.9), 0 20px 50px rgba(0,0,0,0.8);
-            overflow: hidden;
+            overflow: hidden; flex-shrink: 0;
         }
-        #chat-container::before { content: ''; position: absolute; top: 6px; left: 6px; right: 6px; bottom: 6px; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 40px; pointer-events: none; z-index: 0;}
-        #chat-header { background: rgba(0,0,0,0.5); padding: 25px 15px 15px; text-align: center; font-size: 16px; font-weight: bold; color: #d4af37; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 2px; text-transform: uppercase; z-index: 1;}
-        #chat-mesajlar { flex: 1; padding: 15px 25px; overflow-y: auto; font-size: 14px; color: #ecf0f1; display: flex; flex-direction: column; gap: 10px; word-wrap: break-word; z-index: 1;}
-        #chat-input-alan { display: flex; padding: 15px 20px 30px; background: rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.05); z-index: 1;}
+        #chat-header { background: rgba(0,0,0,0.5); padding: 15px; text-align: center; font-size: 16px; font-weight: bold; color: #d4af37; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 2px; text-transform: uppercase;}
+        #chat-mesajlar { flex: 1; padding: 15px 25px; overflow-y: auto; font-size: 14px; color: #ecf0f1; display: flex; flex-direction: column; gap: 10px; word-wrap: break-word;}
+        #chat-input-alan { display: flex; padding: 15px 20px 30px; background: rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.05);}
         #chat-input { flex: 1; background: rgba(0,0,0,0.6); border: 1px solid #444; padding: 12px 15px; color: white; outline: none; font-size: 14px; border-radius: 25px 0 0 25px; transition: 0.2s;}
         #chat-input:focus { border-color: #d4af37; }
         #btn-chat-gonder { background: linear-gradient(to bottom, #f3e5ab, #d4af37); color: black; border: none; padding: 0 20px; font-weight: bold; cursor: pointer; font-size: 14px; border-radius: 0 25px 25px 0; transition: 0.2s;}
-        #btn-chat-gonder:hover { background: linear-gradient(to bottom, #d4af37, #aa8529); }
-        #chat-mesajlar::-webkit-scrollbar { width: 6px; }
-        #chat-mesajlar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-        #chat-mesajlar::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 3px; }
 
         .oyuncu-etiket { position: absolute; background: rgba(0,0,0,0.6); border: 1px solid #d4af37; padding: 4px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; color: #ecf0f1; letter-spacing: 1px; z-index: 10;}
         #etiket-top { top: 20px; left: 50%; transform: translateX(-50%); }
@@ -56,13 +67,14 @@
 
         .rakip-cop { position: absolute; width: 50px; height: 72px; background: rgba(0,0,0,0.3); border: 1px dashed rgba(255,255,255,0.2); border-radius: 6px; display: flex; justify-content: center; align-items: center;}
         #alan-cop-top { top: 55px; left: 50%; transform: translateX(-50%); }
+        #alan-cop-left { top: 15%; left: 40px; }
         #alan-cop-right { top: 15%; right: 40px; }
 
         #masa-ortasi { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); width: 90%; height: 280px; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box;}
         #acilan-seriler { width: 65%; display: flex; flex-wrap: wrap; gap: 15px; align-content: flex-start; }
         #acilan-ciftler { width: 30%; display: flex; flex-direction: column; flex-wrap: wrap; gap: 8px; align-content: flex-end; }
         
-        .acilan-per { display: flex; gap: 1px; background: transparent; padding: 0; box-shadow: 2px 2px 10px rgba(0,0,0,0.5); border-radius: 4px; transition: 0.2s;}
+        .acilan-per { display: flex; gap: 1px; background: transparent; padding: 0; box-shadow: 2px 2px 10px rgba(0,0,0,0.5); border-radius: 4px; transition: 0.2s; cursor: pointer;}
         .acilan-per.drag-over { transform: scale(1.05); box-shadow: 0 0 15px #d4af37;}
 
         #alt-alan { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; justify-content: center; align-items: flex-end; gap: 20px; padding: 0 20px; box-sizing: border-box;}
@@ -80,9 +92,12 @@
         .etkilesim-alani { display: flex; flex-direction: column; align-items: center; gap: 5px;}
         .etkilesim-baslik { font-size: 11px; color: #888; text-transform: uppercase; font-weight: bold; text-align: center;}
         
-        .oyun-slotu { width: 50px; height: 72px; background: rgba(0,0,0,0.5); border: 2px solid #333; border-radius: 6px; display: flex; justify-content: center; align-items: center; position: relative; box-shadow: inset 0 0 10px #000;}
-        .oyun-slotu.yandan-alinabilir { border-color: #2ecc71; box-shadow: 0 0 15px rgba(46, 204, 113, 0.4); cursor: pointer; }
-        .oyun-slotu.drag-over { background: rgba(212, 175, 55, 0.2); border-color: #d4af37;}
+        .oyun-slotu { width: 50px; height: 72px; background: rgba(0,0,0,0.5); border: 2px solid #333; border-radius: 6px; display: flex; justify-content: center; align-items: center; position: relative; box-shadow: inset 0 0 10px #000; cursor: pointer;}
+        .oyun-slotu.yandan-alinabilir { border-color: #2ecc71; box-shadow: 0 0 15px rgba(46, 204, 113, 0.4); }
+        
+        /* Çöpe atma uyarısı (Taş seçildiğinde yanar) */
+        .hedef-belirgin { animation: pulseRed 1s infinite; border-color: #e74c3c !important; }
+        @keyframes pulseRed { 0% {box-shadow: 0 0 10px #e74c3c;} 50% {box-shadow: 0 0 25px #e74c3c;} 100% {box-shadow: 0 0 10px #e74c3c;} }
 
         #benim-istakam { 
             background: linear-gradient(to bottom, #2b2b2b 0%, #1a1a1a 100%); border: 2px solid #000; border-top: 4px solid #444; border-radius: 8px; 
@@ -90,21 +105,23 @@
             display: grid; grid-template-columns: repeat(15, 48px); grid-template-rows: repeat(2, 70px); gap: 2px; position: relative;
         }
         #benim-istakam::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 4px; background: #0a0a0a; transform: translateY(-50%); pointer-events: none; border-bottom: 1px solid #333;}
-        .istaka-slot { width: 48px; height: 70px; background-color: rgba(0,0,0,0.3); border-radius: 4px; box-shadow: inset 1px 1px 5px rgba(0,0,0,0.8); }
-        .istaka-slot.drag-over { background-color: rgba(255,255,255,0.1); }
-
+        .istaka-slot { width: 48px; height: 70px; background-color: rgba(0,0,0,0.3); border-radius: 4px; box-shadow: inset 1px 1px 5px rgba(0,0,0,0.8); cursor: pointer; }
+        
         .tas { 
             width: 48px; height: 70px; background: linear-gradient(to bottom, #fdfbf7 0%, #e9e4d0 100%); 
             border-radius: 5px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; 
-            font-weight: bold; cursor: grab; box-shadow: 1px 2px 4px rgba(0,0,0,0.7); 
+            font-weight: bold; cursor: pointer; box-shadow: 1px 2px 4px rgba(0,0,0,0.7); 
             border: 1px solid #c8c0b0; border-bottom: 3px solid #b0a590; user-select: none; transition: transform 0.1s; 
-            padding-top: 5px; box-sizing: border-box; position: relative;
+            padding-top: 5px; box-sizing: border-box; position: relative; touch-action: none;
         }
         .tas .deger { font-size: 26px; line-height: 1; }
-        .tas .yildiz { position: absolute; bottom: 9px; font-size: 14px; line-height: 1;} /* YILDIZ ÇOK AZ YUKARI ALINDI */
+        .tas .yildiz { position: absolute; bottom: 9px; font-size: 14px; line-height: 1;}
         
         .tas.dragging { opacity: 0.4; }
         .gecerli-per { box-shadow: 0 0 12px #d4af37, inset 0 0 4px #d4af37 !important; border-color: #d4af37 !important; transform: translateY(-4px); }
+        
+        /* TIKLA-TAŞI SEÇİM STİLİ */
+        .aktif-secili { transform: translateY(-20px) scale(1.1) !important; box-shadow: 0 15px 25px rgba(212, 175, 55, 0.9) !important; border-color: #f1c40f !important; z-index: 100; }
 
         .kirmizi { color: #d32f2f; } .siyah { color: #212121; } .mavi { color: #1976d2; } .sari { color: #f57f17; }
         .sahte { color: #8e44ad; }
@@ -124,11 +141,22 @@
         
         #bitis-ekrani { display: none; z-index: 1000; }
         #bitis-mesaji { font-size: 32px; font-weight: bold; margin-bottom: 5px; }
-        .skor-tablosu { background: #ecf0f1; color: #2c3e50; border-radius: 10px; padding: 20px; width: 450px; text-align: left; margin-bottom: 20px; }
+        .skor-tablosu { background: #ecf0f1; color: #2c3e50; border-radius: 10px; padding: 20px; width: 450px; text-align: left; margin-bottom: 20px; max-width: 90vw;}
         .skor-satir { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #bdc3c7; font-size: 18px;}
+        
+        @media screen and (min-width: 1750px) {
+            #oyun-wrapper { flex-direction: row; justify-content: center; overflow: hidden; padding: 0;}
+            #chat-container { width: 320px; height: 750px; border-radius: 40px; margin-top: 0;}
+        }
     </style>
 </head>
 <body>
+
+    <div id="dondur-uyari">
+        <div class="rotate-icon">↻</div>
+        <div>Lütfen Cihazınızı Yan Çevirin</div>
+        <div style="font-size: 14px; margin-top: 10px; color:#aaa;">Okey en iyi yatay ekranda oynanır.</div>
+    </div>
 
     <div id="giris-ekrani" class="tam-ekran">
         <div class="kutu">
@@ -215,7 +243,7 @@
                     </div>
                     <div class="etkilesim-alani">
                         <div class="etkilesim-baslik" style="color: #d4af37;">Banka (<span id="kalan-tas-sayisi"></span>)</div>
-                        <div class="oyun-slotu kapali-tas" id="deste-tas" draggable="false" style="cursor: grab;"></div>
+                        <div class="oyun-slotu kapali-tas" id="deste-tas" draggable="false" style="cursor: pointer;"></div>
                     </div>
                     <div class="etkilesim-alani">
                         <div class="etkilesim-baslik" id="isim-bottom" style="color: white;">Sen</div>
@@ -261,8 +289,23 @@
         let oyunOkeyi = null; let hedefDesteSlot = null; let benimIndex = 0; let isimlerListesi = [];
         let gecerliAcmayaHazirGruplar = []; let ciftGruplari = [];
 
-        // GLOBAL DRAG FIX
+        // MOBİL TIKLA-TAŞI SİSTEMİ İÇİN KÜRESEL SEÇİM
+        let seciliTasId = null;
+
         document.addEventListener('dragend', () => { if (draggedTas) { draggedTas.classList.remove('dragging'); draggedTas = null; }});
+
+        function boyutlandir() {
+            const masa = document.getElementById('masa-container');
+            const wrapper = document.getElementById('oyun-wrapper');
+            if(wrapper.style.display === 'none') return;
+            let availableWidth = window.innerWidth * 0.95;
+            let scale = availableWidth / 1350;
+            if (scale > 1) scale = 1; 
+            masa.style.transform = `scale(${scale})`;
+            let scaledHeight = 750 * scale;
+            masa.style.marginBottom = `-${750 - scaledHeight}px`;
+        }
+        window.addEventListener('resize', boyutlandir);
 
         let myPlayerId = localStorage.getItem('okey_playerId');
         let myPlayerName = localStorage.getItem('okey_playerName');
@@ -297,12 +340,8 @@
         });
 
         socket.on('hubGoster', (odalar) => {
-            document.getElementById('giris-ekrani').style.display = 'none'; 
-            document.getElementById('oyun-wrapper').style.display = 'none'; 
-            document.getElementById('hub-ekrani').style.display = 'flex'; 
-            renderHub(odalar);
+            document.getElementById('giris-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'none'; document.getElementById('hub-ekrani').style.display = 'flex'; renderHub(odalar);
         });
-
         socket.on('hubGuncelle', (odalar) => { if(document.getElementById('hub-ekrani').style.display === 'flex') renderHub(odalar); });
         document.getElementById('btn-oda-kur').addEventListener('click', () => socket.emit('odaOlustur'));
 
@@ -312,7 +351,6 @@
                 let amIInRoom = oda.playerIds && oda.playerIds.includes(myPlayerId);
                 let btnDisabled = (!amIInRoom && (oda.status !== 'waiting' || oda.playerCount >= 4)) ? 'disabled' : '';
                 let btnText = (amIInRoom && oda.status === 'playing') ? 'Geri Dön' : 'Katıl';
-                
                 let s = document.createElement('div'); s.className = 'oda-satiri';
                 s.innerHTML = `<div><span style="color:#d4af37; font-weight:bold;">${oda.name}</span><br><span style="font-size:12px; color:#888;">Oyuncu: ${oda.playerCount}/4</span></div> 
                                <button class="btn-gold" style="padding: 5px 15px; font-size:14px;" ${btnDisabled} onclick="socket.emit('odayaKatil', '${oda.id}')">${btnText}</button>`;
@@ -321,9 +359,8 @@
         }
 
         socket.on('odaGuncellendi', (data) => {
-            document.getElementById('hub-ekrani').style.display = 'none';
-            document.getElementById('oyun-wrapper').style.display = 'flex';
-            
+            document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex';
+            boyutlandir(); 
             isimlerListesi = data.players;
             if (isimlerListesi.length > 0) {
                 let mIdx = isimlerListesi.findIndex(isim => isim === myPlayerName) || 0;
@@ -332,7 +369,6 @@
                 document.getElementById('etiket-top').innerText = isimlerListesi[(mIdx + 2) % 4] || "Bekleniyor";
                 document.getElementById('etiket-left').innerText = isimlerListesi[(mIdx + 3) % 4] || "Bekleniyor";
             }
-
             if (data.status === 'waiting') {
                 if (myPlayerId === data.hostId) btnOyunuBaslat.style.display = data.players.length === 4 ? 'block' : 'none';
                 else btnOyunuBaslat.style.display = 'none';
@@ -353,7 +389,6 @@
             return true;
         }
 
-        // 13-1 KURALI TAMAMEN SİLİNDİ!
         function isRunValid(group) {
             if (group.length < 3 || group.length > 13) return false;
             let n = group.map(t => getEff(t)).filter(t => !isOkey(t));
@@ -420,6 +455,11 @@
             
             btnSeriAc.disabled = gecerliAcmayaHazirGruplar.length === 0 || !benimSira;
             btnCiftAc.disabled = ciftGruplari.length < 5 || !benimSira;
+            
+            // Seçili taş varsa sağ çöpü aydınlat (Mobil Click-to-Move rehberi)
+            if (seciliTasId !== null && benimSira) copBottom.classList.add('hedef-belirgin');
+            else copBottom.classList.remove('hedef-belirgin');
+
             return { seri: gecerliAcmayaHazirGruplar, cift: ciftGruplari };
         }
 
@@ -429,8 +469,19 @@
             if (isOkey(tas)) { content = ''; div.classList.add('kapali-tas'); }
             div.innerHTML = content;
             div.dataset.id = tas.id; div.dataset.color = tas.color; div.dataset.value = tas.value; div.draggable = true;
-            div.ondragstart = (e) => { draggedTas = div; draggedFromIndex = slotIndex; e.dataTransfer.setData("type", "rackTile"); setTimeout(() => div.classList.add('dragging'), 0); };
-            div.ondragend = () => { if(draggedTas) draggedTas.classList.remove('dragging'); draggedTas = null; };
+            
+            // MOBİL UYUMLU TIKLAMA (SEÇME) ÖZELLİĞİ
+            div.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (seciliTasId === tas.id) seciliTasId = null; // Tıklamayı geri al
+                else seciliTasId = tas.id; // Seç
+                istakayiCiz(); // Görseli güncelle
+            });
+            
+            if (seciliTasId === tas.id) div.classList.add('aktif-secili');
+
+            div.ondragstart = (e) => { seciliTasId = tas.id; draggedTas = div; draggedFromIndex = slotIndex; e.dataTransfer.setData("type", "rackTile"); setTimeout(() => div.classList.add('dragging'), 0); };
+            div.ondragend = () => { if(draggedTas) draggedTas.classList.remove('dragging'); draggedTas = null; seciliTasId = null; istakayiCiz();};
             return div;
         }
 
@@ -439,6 +490,22 @@
             for (let i = 0; i < 30; i++) {
                 let slot = document.createElement('div'); slot.className = 'istaka-slot'; slot.dataset.index = i;
                 if (benimElim[i]) slot.appendChild(tasOlustur(benimElim[i], i));
+                
+                // MOBİL TIKLA-TAŞI: BOŞ SLOTA TIKLAYINCA TAŞI ORAYA GÖNDER
+                slot.addEventListener('click', () => {
+                    if (seciliTasId !== null) {
+                        let fromIdx = benimElim.findIndex(t => t && t.id === seciliTasId);
+                        if (fromIdx !== -1 && !benimElim[i]) {
+                            benimElim[i] = benimElim[fromIdx]; benimElim[fromIdx] = null; seciliTasId = null; istakayiCiz();
+                        }
+                    } else {
+                        // Eğer taş seçili değilse ve boşluğa tıkladıysa, bankadan oraya taş çek
+                        if(benimSira && !document.getElementById('deste-tas').disabled) {
+                            hedefDesteSlot = i; socket.emit('ortadanCek');
+                        }
+                    }
+                });
+
                 slot.ondragover = (e) => { e.preventDefault(); slot.classList.add('drag-over'); };
                 slot.ondragleave = (e) => slot.classList.remove('drag-over');
                 slot.ondrop = (e) => {
@@ -446,7 +513,7 @@
                     let dragType = e.dataTransfer.getData("type");
                     if (dragType === "deckTile") { hedefDesteSlot = i; socket.emit('ortadanCek'); } 
                     else if (dragType === "rackTile" && draggedFromIndex !== null) {
-                        let temp = benimElim[i]; benimElim[i] = benimElim[draggedFromIndex]; benimElim[draggedFromIndex] = temp; istakayiCiz(); 
+                        let temp = benimElim[i]; benimElim[i] = benimElim[draggedFromIndex]; benimElim[draggedFromIndex] = temp; seciliTasId = null; istakayiCiz(); 
                     }
                 };
                 istakaDiv.appendChild(slot);
@@ -454,25 +521,26 @@
             if (oyunOkeyi) otomatikPuanHesapla(); 
         }
 
-        // ÇOK DAHA AKILLI SERİ DİZME ALGORİTMASI
+        // AKILLI SERİ DİZME ALGORİTMASI HATA DÜZELTMESİ (colorTiles -> renkliler)
         document.getElementById('btn-seri-diz').addEventListener('click', () => {
+            seciliTasId = null; // Dizince seçimi kaldır
             let compact = benimElim.filter(t => t !== null);
             let okeys = compact.filter(t => isOkey(t)); let normals = compact.filter(t => !isOkey(t));
             let used = new Set(); let gruplar = [];
 
             ['sari', 'kirmizi', 'siyah', 'mavi'].forEach(renk => {
-                let colorTiles = normals.filter(t => getEff(t).color === renk).sort((a,b) => getEff(a).value - getEff(b).value);
+                let renkliler = normals.filter(t => getEff(t).color === renk).sort((a,b) => getEff(a).value - getEff(b).value);
                 let keepExtracting = true;
                 while(keepExtracting) {
                     let currentRun = []; let toRemove = [];
-                    for(let i=0; i<colorTiles.length; i++) {
-                        let tile = colorTiles[i];
+                    for(let i=0; i<renkliler.length; i++) {
+                        let tile = renkliler[i];
                         if (currentRun.length === 0) { currentRun.push(tile); toRemove.push(i); }
                         else {
                             let lastVal = getEff(currentRun[currentRun.length-1]).value;
                             let val = getEff(tile).value;
                             if (val === lastVal + 1) { currentRun.push(tile); toRemove.push(i); }
-                            else if (val === lastVal) { /* kopya taş, atla */ }
+                            else if (val === lastVal) { /* kopya */ }
                             else if (val > lastVal + 1) {
                                 if (currentRun.length >= 3) break;
                                 else { currentRun = [tile]; toRemove = [i]; }
@@ -481,7 +549,7 @@
                     }
                     if (currentRun.length >= 3) {
                         gruplar.push(currentRun); currentRun.forEach(t => used.add(t.id));
-                        for(let i = toRemove.length - 1; i >= 0; i--) colorTiles.splice(toRemove[i], 1);
+                        for(let i = toRemove.length - 1; i >= 0; i--) renkliler.splice(toRemove[i], 1);
                     } else { keepExtracting = false; }
                 }
             });
@@ -560,6 +628,7 @@
         });
 
         document.getElementById('btn-cift-diz').addEventListener('click', () => {
+            seciliTasId = null;
             let compact = benimElim.filter(t => t !== null); let okeys = compact.filter(t => isOkey(t)); let normals = compact.filter(t => !isOkey(t));
             let ciftler = []; let used = new Set(); let ciftHaritasi = {};
 
@@ -578,22 +647,34 @@
             istakayiCiz();
         });
 
+        // MOBİL TIKLAYARAK BANKADAN ÇEKME VEYA SÜRÜKLEME
+        desteTasDiv.addEventListener('click', () => { if(benimSira && !desteTasDiv.disabled) { hedefDesteSlot = null; socket.emit('ortadanCek'); }});
         desteTasDiv.ondragstart = (e) => { if(!benimSira) { e.preventDefault(); return; } e.dataTransfer.setData("type", "deckTile"); };
-        document.getElementById('cop-bottom').ondragover = (e) => { e.preventDefault(); document.getElementById('cop-bottom').classList.add('drag-over'); };
-        document.getElementById('cop-bottom').ondragleave = (e) => document.getElementById('cop-bottom').classList.remove('drag-over');
-        document.getElementById('cop-bottom').ondrop = (e) => {
-            e.preventDefault(); document.getElementById('cop-bottom').classList.remove('drag-over');
-            if (e.dataTransfer.getData("type") === "rackTile" && draggedTas && benimSira) { socket.emit('tasAt', { id: parseInt(draggedTas.dataset.id), color: draggedTas.dataset.color, value: parseInt(draggedTas.dataset.value) }); draggedTas = null; }
+        
+        // MOBİL TIKLAYARAK SAĞA ATMA (ÇÖP)
+        copBottom.addEventListener('click', () => {
+            if (seciliTasId !== null && benimSira) {
+                let tasObj = benimElim.find(t => t && t.id === seciliTasId);
+                if (tasObj) { socket.emit('tasAt', { id: tasObj.id, color: tasObj.color, value: tasObj.value }); seciliTasId = null; }
+            }
+        });
+        copBottom.ondragover = (e) => { e.preventDefault(); copBottom.classList.add('drag-over'); };
+        copBottom.ondragleave = (e) => copBottom.classList.remove('drag-over');
+        copBottom.ondrop = (e) => {
+            e.preventDefault(); copBottom.classList.remove('drag-over');
+            if (e.dataTransfer.getData("type") === "rackTile" && draggedTas && benimSira) { socket.emit('tasAt', { id: parseInt(draggedTas.dataset.id), color: draggedTas.dataset.color, value: parseInt(draggedTas.dataset.value) }); draggedTas = null; seciliTasId = null; }
         };
 
+        // MOBİL TIKLAYARAK SOLDAN ALMA
         document.getElementById('cop-left').addEventListener('click', () => { if (benimSira && document.getElementById('cop-left').children.length > 0) socket.emit('yandanCek'); });
 
-        btnSeriAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.seri.length > 0) socket.emit('seriAcmaTalebi', res.seri); });
-        btnCiftAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.cift.length >= 5) socket.emit('ciftAcmaTalebi', res.cift); });
+        btnSeriAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.seri.length > 0) { socket.emit('seriAcmaTalebi', res.seri); seciliTasId = null; }});
+        btnCiftAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.cift.length >= 5) { socket.emit('ciftAcmaTalebi', res.cift); seciliTasId = null; }});
         btnYandanIptal.addEventListener('click', () => socket.emit('yandanAlmaIptal'));
 
         socket.on('reconnectData', (data) => {
             document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('giris-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex';
+            boyutlandir(); seciliTasId = null;
             oyunOkeyi = data.okey; benimIndex = data.benimIndex; isimlerListesi = data.isimler;
             gostergeDiv.innerHTML = ''; gostergeDiv.appendChild(tasOlustur(data.gosterge, -1)); kalanTasSpan.innerText = data.kalanTas;
             benimElim = Array(30).fill(null); data.istaka.forEach((tas, i) => benimElim[i] = tas);
@@ -602,8 +683,9 @@
         });
 
         socket.on('oyunBasladi', (data) => {
-            oyunOkeyi = data.okey; benimIndex = data.benimIndex; isimlerListesi = data.isimler;
+            oyunOkeyi = data.okey; benimIndex = data.benimIndex; isimlerListesi = data.isimler; seciliTasId = null;
             document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; document.getElementById('chat-mesajlar').innerHTML = '';
+            boyutlandir();
             durumCubugu.innerText = "Oyun Başladı! Sıra bekleniyor...";
             gostergeDiv.innerHTML = ''; gostergeDiv.appendChild(tasOlustur(data.gosterge, -1)); kalanTasSpan.innerText = data.kalanTas;
             benimElim = Array(30).fill(null); data.istaka.forEach((tas, i) => benimElim[i] = tas);
@@ -617,6 +699,12 @@
             masaPerler.forEach((per, index) => {
                 let perDiv = document.createElement('div'); perDiv.className = 'acilan-per';
                 per.forEach(tas => perDiv.appendChild(tasOlustur(tas, -1))); 
+                
+                // MOBİL TIKLA-İŞLE MANTIĞI
+                perDiv.addEventListener('click', () => {
+                    if (seciliTasId !== null && benimSira) { socket.emit('yereIsleTalebi', { tasId: seciliTasId, perIndex: index }); seciliTasId = null; }
+                });
+
                 perDiv.ondragover = (e) => { e.preventDefault(); perDiv.classList.add('drag-over'); };
                 perDiv.ondragleave = (e) => perDiv.classList.remove('drag-over');
                 perDiv.ondrop = (e) => { e.preventDefault(); perDiv.classList.remove('drag-over'); if (e.dataTransfer.getData("type") === "rackTile" && draggedTas && benimSira) socket.emit('yereIsleTalebi', { tasId: draggedTas.dataset.id, perIndex: index }); };
@@ -625,28 +713,27 @@
             });
         }
 
-        // SOL ÜST KÖŞEDEKİ EKRAN KALDIRILDI! ARTIK SADECE "SOLDAN AL" YUVASINDA GÖRÜNÜR
         function renderCopler(copler) {
             if(!copler) return;
             const rCop = (id, tasVerisi) => { let alan = document.getElementById(id); alan.innerHTML = ''; if(tasVerisi) { let t = tasOlustur(tasVerisi, -1); t.style.transform = "scale(0.8)"; t.draggable = false; alan.appendChild(t); } };
-            rCop('cop-bottom', copler[benimIndex]); 
-            rCop('alan-cop-right', copler[(benimIndex + 1) % 4]);
+            rCop('cop-bottom', copler[benimIndex]); rCop('alan-cop-right', copler[(benimIndex + 1) % 4]);
             rCop('alan-cop-top', copler[(benimIndex + 2) % 4]); 
-            rCop('cop-left', copler[(benimIndex + 3) % 4]); // Sadece etkileşimli kutuda kalır
+            let solAlan = document.getElementById('cop-left'); solAlan.innerHTML = '';
+            if (copler[(benimIndex + 3) % 4]) { let t = tasOlustur(copler[(benimIndex + 3) % 4], -1); t.style.transform = "scale(0.8)"; t.draggable = false; solAlan.appendChild(t); }
         }
 
         socket.on('coplerGuncellendi', renderCopler); socket.on('masaGuncellendi', renderMasa); socket.on('desteGuncellendi', (sayi) => { kalanTasSpan.innerText = sayi; });
 
         socket.on('siraSende', (data) => {
             benimSira = true; btnYandanIptal.style.display = "none";
-            if (data.ilkTurMu) { durumCubugu.innerText = "OYUN BAŞLADI: Desteden çekemezsin, sadece sağa at."; durumCubugu.style.color = "#f39c12"; desteTasDiv.draggable = false; } 
-            else { durumCubugu.innerText = "SIRA SENDE! Desteden Sürükle veya Soldan Al."; durumCubugu.style.color = "#2ecc71"; desteTasDiv.draggable = true; if (data.soldanGelenTas) document.getElementById('cop-left').classList.add('yandan-alinabilir'); }
+            if (data.ilkTurMu) { durumCubugu.innerText = "OYUN BAŞLADI: Sağ tarafa bir taş at."; durumCubugu.style.color = "#f39c12"; desteTasDiv.draggable = false; desteTasDiv.disabled = true;} 
+            else { durumCubugu.innerText = "SIRA SENDE! Bankaya Dokun veya Soldan Al."; durumCubugu.style.color = "#2ecc71"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; if (data.soldanGelenTas) document.getElementById('cop-left').classList.add('yandan-alinabilir'); }
             otomatikPuanHesapla(); 
         });
 
         socket.on('siraBaskasinda', (idx) => {
             benimSira = false; durumCubugu.innerText = `Sıra ${isimlerListesi[idx]}'de...`; durumCubugu.style.color = "#aaa";
-            btnSeriAc.disabled = true; btnCiftAc.disabled = true; btnYandanIptal.style.display = "none"; desteTasDiv.draggable = false;
+            btnSeriAc.disabled = true; btnCiftAc.disabled = true; btnYandanIptal.style.display = "none"; desteTasDiv.draggable = false; desteTasDiv.disabled = true;
             document.getElementById('cop-left').classList.remove('yandan-alinabilir');
         });
 
@@ -654,12 +741,12 @@
             if (hedefDesteSlot !== null && benimElim[hedefDesteSlot] === null) benimElim[hedefDesteSlot] = tas; 
             else { let ilkBos = benimElim.findIndex(t => t === null); if(ilkBos !== -1) benimElim[ilkBos] = tas; }
             hedefDesteSlot = null; istakayiCiz(); durumCubugu.innerText = "Taş çektin. Sağ tarafa bir taş at."; durumCubugu.style.color = "#f39c12";
-            desteTasDiv.draggable = false; document.getElementById('cop-left').classList.remove('yandan-alinabilir');
+            desteTasDiv.draggable = false; desteTasDiv.disabled = true; document.getElementById('cop-left').classList.remove('yandan-alinabilir');
         });
 
         socket.on('tasAtildiOnay', (tasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === tasId) { benimElim[i] = null; break; } } istakayiCiz(); });
         socket.on('yandanAldinZorunluAc', () => { btnYandanIptal.style.display = "inline-block"; });
-        socket.on('yandanIptalEdildi', (silinecekTasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === silinecekTasId) { benimElim[i] = null; break; } } istakayiCiz(); btnYandanIptal.style.display = "none"; desteTasDiv.draggable = true; });
+        socket.on('yandanIptalEdildi', (silinecekTasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === silinecekTasId) { benimElim[i] = null; break; } } istakayiCiz(); btnYandanIptal.style.display = "none"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; });
         socket.on('perAcildiOnay', (idler) => { for (let i = 0; i < 30; i++) { if (benimElim[i] && idler.includes(benimElim[i].id)) benimElim[i] = null; } istakayiCiz(); btnYandanIptal.style.display = "none"; });
         socket.on('islemeBasarili', (tasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === parseInt(tasId)) { benimElim[i] = null; break; } } istakayiCiz(); });
         
