@@ -50,13 +50,27 @@
         .sira-bende-border { border-color: #2ecc71 !important; box-shadow: inset 0 0 80px rgba(0,0,0,0.9), 0 0 50px rgba(46, 204, 113, 0.4) !important; }
         .aktif-sira-isim { box-shadow: 0 0 20px rgba(46, 204, 113, 0.8) !important; border-color: #2ecc71 !important; color: #2ecc71 !important; text-shadow: 0 0 10px #2ecc71 !important; }
 
-        #chat-container { width: 90%; max-width: 1350px; height: 250px; background: radial-gradient(circle at top, #2a2c30 0%, #0d0d0f 100%); border: 6px solid #1a1a1a; border-radius: 30px; display: flex; flex-direction: column; position: relative; box-shadow: inset 0 0 40px rgba(0,0,0,0.9), 0 20px 50px rgba(0,0,0,0.8); overflow: hidden; flex-shrink: 0;}
-        #chat-header { background: rgba(0,0,0,0.5); padding: 15px; text-align: center; font-size: 16px; font-weight: bold; color: #d4af37; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 2px; text-transform: uppercase;}
-        #chat-mesajlar { flex: 1; padding: 15px 25px; overflow-y: auto; font-size: 14px; color: #ecf0f1; display: flex; flex-direction: column; gap: 10px; word-wrap: break-word;}
+        #sag-panel { display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 1350px; flex-shrink: 0; }
+        
+        #chat-container { width: 100%; height: 200px; background: radial-gradient(circle at top, #2a2c30 0%, #0d0d0f 100%); border: 6px solid #1a1a1a; border-radius: 30px; display: flex; flex-direction: column; position: relative; box-shadow: inset 0 0 40px rgba(0,0,0,0.9), 0 20px 50px rgba(0,0,0,0.8); overflow: hidden; box-sizing: border-box;}
+        #chat-header { background: rgba(0,0,0,0.5); padding: 10px; text-align: center; font-size: 14px; font-weight: bold; color: #d4af37; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 2px; text-transform: uppercase;}
+        #chat-mesajlar { flex: 1; padding: 10px 25px; overflow-y: auto; font-size: 13px; color: #ecf0f1; display: flex; flex-direction: column; gap: 8px; word-wrap: break-word;}
         .system-msg { color: #f1c40f; font-style: italic; font-size: 12px;}
-        #chat-input-alan { display: flex; padding: 15px 20px 30px; background: rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.05);}
-        #chat-input { flex: 1; background: rgba(0,0,0,0.6); border: 1px solid #444; padding: 12px 15px; color: white; outline: none; font-size: 14px; border-radius: 25px 0 0 25px; transition: 0.2s;}
-        #btn-chat-gonder { background: linear-gradient(to bottom, #f3e5ab, #d4af37); color: black; border: none; padding: 0 20px; font-weight: bold; cursor: pointer; font-size: 14px; border-radius: 0 25px 25px 0;}
+        #chat-input-alan { display: flex; padding: 10px 20px; background: rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.05);}
+        #chat-input { flex: 1; background: rgba(0,0,0,0.6); border: 1px solid #444; padding: 10px 15px; color: white; outline: none; font-size: 13px; border-radius: 25px 0 0 25px; transition: 0.2s;}
+        #btn-chat-gonder { background: linear-gradient(to bottom, #f3e5ab, #d4af37); color: black; border: none; padding: 0 15px; font-weight: bold; cursor: pointer; font-size: 13px; border-radius: 0 25px 25px 0;}
+
+        #dj-container { width: 100%; background: #111; border: 4px solid #1a1a1a; border-radius: 20px; padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 20px #000;}
+        .dj-baslik { font-size: 12px; color: #888; text-transform: uppercase; font-weight: bold; margin-bottom: -5px; display: flex; justify-content: space-between;}
+        #dj-suan-calan { color: #d4af37; font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dj-alt { display: flex; gap: 10px; align-items: center;}
+        #dj-input { flex: 1; background: #0a0a0a; border: 1px solid #333; padding: 8px 12px; color: white; border-radius: 15px; font-size: 12px; outline: none;}
+        #btn-dj-ekle { background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 15px; cursor: pointer; font-weight: bold; font-size: 12px;}
+        #btn-dj-ekle:hover { background: #415b76;}
+        #btn-dj-atla { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 15px; cursor: pointer; font-weight: bold; font-size: 12px;}
+        #btn-dj-atla:hover { background: #c0392b;}
+        .dj-ses-kontrol { display: flex; align-items: center; gap: 5px; font-size: 18px; color: #888;}
+        #dj-ses { width: 60px; accent-color: #d4af37; }
 
         .oyuncu-etiket { position: absolute; background: rgba(0,0,0,0.6); border: 1px solid #d4af37; padding: 4px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; color: #ecf0f1; letter-spacing: 1px; z-index: 10; transition: 0.3s;}
         #etiket-top { top: 20px; left: 50%; transform: translateX(-50%); }
@@ -140,7 +154,8 @@
         
         @media screen and (min-width: 1750px) {
             #oyun-wrapper { flex-direction: row; justify-content: center; overflow: hidden; padding: 0;}
-            #chat-container { width: 320px; height: 750px; border-radius: 40px; margin-top: 0;}
+            #sag-panel { width: 320px; height: 750px; margin-top: 0; }
+            #chat-container { height: 600px; }
         }
     </style>
 </head>
@@ -152,6 +167,8 @@
         <div>Lütfen Cihazınızı Yan Çevirin</div>
         <div style="font-size: 14px; margin-top: 10px; color:#aaa;">Area51 Okey en iyi yatay ekranda oynanır.</div>
     </div>
+
+    <div id="yt-player" style="position: absolute; top: -9999px; left: -9999px;"></div>
 
     <div id="giris-ekrani" class="tam-ekran">
         <div class="kutu">
@@ -246,16 +263,38 @@
             </div>
         </div>
 
-        <div id="chat-container">
-            <div id="chat-header">Masa Sohbeti</div>
-            <div id="chat-mesajlar"></div>
-            <div id="chat-input-alan">
-                <input type="text" id="chat-input" placeholder="Mesaj yaz..." maxlength="50">
-                <button id="btn-chat-gonder">Gönder</button>
+        <div id="sag-panel">
+            <div id="dj-container">
+                <div class="dj-baslik">
+                    <span>🎵 Area51 DJ</span>
+                    <div class="dj-ses-kontrol">🔊 <input type="range" id="dj-ses" min="0" max="100" value="30"></div>
+                </div>
+                <div id="dj-suan-calan">Şu an sessizlik hakim...</div>
+                <div class="dj-alt">
+                    <input type="text" id="dj-input" placeholder="YouTube'dan şarkı ara..." maxlength="50">
+                    <button id="btn-dj-ekle">Ekle</button>
+                    <button id="btn-dj-atla">Atla (0/2)</button>
+                </div>
+            </div>
+
+            <div id="chat-container">
+                <div id="chat-header">Masa Sohbeti</div>
+                <div id="chat-mesajlar"></div>
+                <div id="chat-input-alan">
+                    <input type="text" id="chat-input" placeholder="Mesaj yaz..." maxlength="50">
+                    <button id="btn-chat-gonder">Gönder</button>
+                </div>
             </div>
         </div>
 
     </div>
+
+    <script>
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    </script>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -283,8 +322,88 @@
         let oyunOkeyi = null; let hedefDesteSlot = null; let benimIndex = 0; let isimlerListesi = [];
         let gecerliAcmayaHazirGruplar = []; let ciftGruplari = []; let seciliTasId = null;
         let turnTimerInterval;
-        let hamleYapildi = false; // GERİ TOPLA KONTROLÜ
+        let hamleYapildi = false; 
+        let currentRoomHostId = null; 
 
+        // YOUTUBE DJ PLAYER VE SENKRONİZASYON MANTIĞI
+        let ytPlayer;
+        let ytPlayerReady = false;
+        let currentSongPayload = null;
+        let musicReceiveTime = 0;
+
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('yt-player', {
+                height: '0', width: '0', videoId: '',
+                playerVars: { 'autoplay': 1, 'controls': 0, 'origin': window.location.origin },
+                events: { 
+                    'onReady': () => { ytPlayerReady = true; },
+                    'onStateChange': onPlayerStateChange 
+                }
+            });
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.ENDED) {
+                if (myPlayerId === currentRoomHostId) socket.emit('sarkiBittiOtoGecis');
+            }
+        }
+        
+        document.getElementById('dj-ses').addEventListener('input', (e) => {
+            if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(e.target.value);
+        });
+
+        document.getElementById('btn-dj-ekle').addEventListener('click', () => {
+            let val = document.getElementById('dj-input').value.trim();
+            if(val) { socket.emit('sarkiAraEkle', val); document.getElementById('dj-input').value = ''; }
+        });
+
+        document.getElementById('dj-input').addEventListener('keypress', (e) => { 
+            if(e.key==='Enter') document.getElementById('btn-dj-ekle').click(); 
+        });
+
+        document.getElementById('btn-dj-atla').addEventListener('click', () => socket.emit('sarkiAtlaOy'));
+        
+        // MİLİSANİYE HASSASİYETLİ SENKRONİZASYON VE AUTOPLAY FİXİ
+        socket.on('music_play', (song) => {
+            if (song) {
+                currentSongPayload = song;
+                musicReceiveTime = performance.now(); 
+                document.getElementById('dj-suan-calan').innerText = "🎶 " + song.title;
+                document.getElementById('btn-dj-atla').innerText = "Atla (0/2)";
+                
+                const playWhenReady = () => {
+                    if (ytPlayer && ytPlayerReady && ytPlayer.loadVideoById) {
+                        let driftDelay = (performance.now() - musicReceiveTime) / 1000;
+                        let exactStart = (song.elapsedTime || 0) + driftDelay;
+                        ytPlayer.loadVideoById({ videoId: song.id, startSeconds: exactStart });
+                    } else {
+                        setTimeout(playWhenReady, 100); 
+                    }
+                };
+                playWhenReady();
+            } else {
+                currentSongPayload = null;
+                document.getElementById('dj-suan-calan').innerText = "Şu an sessizlik hakim...";
+                document.getElementById('btn-dj-atla').innerText = "Atla (0/2)";
+                if (ytPlayer && ytPlayerReady && ytPlayer.stopVideo) ytPlayer.stopVideo();
+            }
+        });
+
+        // TARAYICI AUTOPLAY ENGELİNİ BYPASS EDEN GLOBAL TIKLAMA (SAYFA YENİLENDİĞİNDE)
+        document.addEventListener('click', () => {
+            if (ytPlayer && ytPlayerReady && currentSongPayload) {
+                let state = ytPlayer.getPlayerState();
+                if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                    ytPlayer.playVideo();
+                }
+            }
+        });
+
+        socket.on('music_voteUpdate', (data) => {
+            document.getElementById('btn-dj-atla').innerText = `Atla (${data.current}/${data.required})`;
+        });
+
+        // OYUN FONKSİYONLARI 
         function showToast(message, type="info") {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.innerText = message;
@@ -298,15 +417,12 @@
                 const ctx = new AudioContext(); 
                 const osc = ctx.createOscillator(); 
                 const gain = ctx.createGain();
-                
                 osc.type = 'sine'; 
                 osc.frequency.setValueAtTime(100, ctx.currentTime); 
                 osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.4); 
-                
                 gain.gain.setValueAtTime(0, ctx.currentTime); 
                 gain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.05); 
                 gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4); 
-                
                 osc.connect(gain); gain.connect(ctx.destination); 
                 osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.45);
             } catch(e) {}
@@ -391,6 +507,7 @@
         socket.on('odaGuncellendi', (data) => {
             document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; boyutlandir(); 
             isimlerListesi = data.players;
+            currentRoomHostId = data.hostId;
             if (isimlerListesi.length > 0) {
                 let mIdx = isimlerListesi.findIndex(isim => isim === myPlayerName) || 0;
                 document.getElementById('isim-bottom').innerText = "Sen"; document.getElementById('etiket-right').innerText = isimlerListesi[(mIdx + 1) % 4] || "Bekleniyor";
@@ -426,6 +543,8 @@
             let req = 0; for(let i=0; i<vals.length-1; i++){ let g = vals[i+1]-vals[i]-1; if(g<0) return false; req+=g; } return req <= okeyC;
         }
 
+        function isGroupValid(group) { return isSetValid(group) || isRunValid(group); }
+
         function getGroupScore(group) {
             let n = group.map(t => getEff(t)).filter(t => !isOkey(t)); if (n.length === 0) return 0;
             if (isSetValid(group)) return n[0].value * group.length;
@@ -435,10 +554,7 @@
             while (okeysCount > 0) { if (expectedVal > 13) { startVal--; resultVals.unshift(startVal); } else { resultVals.push(expectedVal); expectedVal++; } okeysCount--; }
             return resultVals.reduce((a, b) => a + b, 0);
         }
-        
-        function isGroupValid(group) { return isSetValid(group) || isRunValid(group); }
 
-        // 5'Lİ PERLERDE EN KÜÇÜK TAŞI ATIP SKORU MAKSİMİZE EDEN ALGORİTMA
         function splitGroup(groupData) {
             let g = groupData.t; let idxs = groupData.idxl; let len = g.length;
             
@@ -567,7 +683,6 @@
 
         socket.on('istakaGuncellendi', (yeniEl) => { benimElim = Array(30).fill(null); yeniEl.forEach((tas, i) => benimElim[i] = tas); istakayiCiz(); });
 
-        // ANTI-PER KARIŞTIRICI: Artan taşları gereksiz yere per veya çift oluşturmayacak şekilde dizer
         function safeArrangeLeftovers(tiles, mode) {
             let res = []; let pool = [...tiles];
             while(pool.length > 0) {
@@ -598,8 +713,8 @@
 
             for (let g of groups) {
                 let gArr = Array.isArray(g) ? g : g.t; 
-                if (currIdx > 0 && currIdx !== 15) currIdx++; // Gruplar arası 1 boşluk
-                if (currIdx < 15 && currIdx + gArr.length > 15) currIdx = 15; // Sığmıyorsa alt satıra geç
+                if (currIdx > 0 && currIdx !== 15) currIdx++; 
+                if (currIdx < 15 && currIdx + gArr.length > 15) currIdx = 15; 
                 for (let t of gArr) place(t);
             }
 
@@ -609,18 +724,17 @@
                 if (currIdx < 30 && currIdx !== 15 && currIdx !== 0) {
                     if (mode === 'seri' && newRack[currIdx - 1]) {
                         if (isPairValid([newRack[currIdx - 1], t])) {
-                            if (currIdx < 29 && currIdx !== 14) currIdx++; // Çift engelle
+                            if (currIdx < 29 && currIdx !== 14) currIdx++; 
                         }
                     } else if (mode === 'cift' && currIdx % 15 >= 2 && newRack[currIdx - 1] && newRack[currIdx - 2]) {
                         if (isGroupValid([newRack[currIdx - 2], newRack[currIdx - 1], t])) {
-                            if (currIdx < 29 && currIdx !== 14) currIdx++; // Seri engelle
+                            if (currIdx < 29 && currIdx !== 14) currIdx++; 
                         }
                     }
                 }
                 place(t);
             }
 
-            // HİÇBİR TAŞ KAYBOLMAZ - Sımsıkı paketle
             for (let t of unplaced) {
                 let emptyIdx = newRack.indexOf(null);
                 if (emptyIdx !== -1) newRack[emptyIdx] = t;
@@ -764,7 +878,7 @@
 
         socket.on('siraSende', (data) => {
             benimSira = true; btnYandanIptal.style.display = "none"; playTurnSound(); siraParlamasiGuncelle(benimIndex); startClientTimer(data.turnEndTime);
-            hamleYapildi = false; btnGeriTopla.disabled = true; // Geri Topla Sıfırla
+            hamleYapildi = false; btnGeriTopla.disabled = true;
             if (data.ilkTurMu) { durumCubugu.innerText = "OYUN BAŞLADI: Sağ tarafa bir taş at."; durumCubugu.style.color = "#f39c12"; desteTasDiv.draggable = false; desteTasDiv.disabled = true;} 
             else { durumCubugu.innerText = "SIRA SENDE! Bankaya Dokun veya Soldan Al."; durumCubugu.style.color = "#2ecc71"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; if (data.soldanGelenTas) document.getElementById('cop-left').classList.add('yandan-alinabilir'); }
             otomatikPuanHesapla(); 
@@ -787,7 +901,7 @@
         socket.on('tasAtildiOnay_Auto', (data) => { if (data.pId === myPlayerId) { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === data.tasId) { benimElim[i] = null; break; } } istakayiCiz(); } });
         
         socket.on('yandanAldinZorunluAc', () => { btnYandanIptal.style.display = "inline-block"; });
-        socket.on('yandanIptalKaldir', () => { btnYandanIptal.style.display = "none"; }); // DÜZELTME
+        socket.on('yandanIptalKaldir', () => { btnYandanIptal.style.display = "none"; }); 
         socket.on('yandanIptalEdildi', (silinecekTasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === silinecekTasId) { benimElim[i] = null; break; } } istakayiCiz(); btnYandanIptal.style.display = "none"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; });
         
         socket.on('perAcildiOnay', (idler) => { for (let i = 0; i < 30; i++) { if (benimElim[i] && idler.includes(benimElim[i].id)) benimElim[i] = null; } istakayiCiz(); hamleYapildi = true; btnGeriTopla.disabled = false; showToast('Taşlar masaya açıldı!', 'success'); });
