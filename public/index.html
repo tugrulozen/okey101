@@ -5,27 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Area51 Okey</title>
     
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
-    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
-    <script>MobileDragDrop.polyfill({dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride});</script>
-
     <style>
         body { background-color: #050505; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; touch-action: pan-x pan-y;}
         
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: rgba(10, 10, 10, 0.95); border-left: 4px solid #d4af37; color: #ecf0f1; padding: 12px 20px; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.8); font-size: 14px; min-width: 250px; animation: slideIn 0.3s forwards, fadeOut 0.5s 3.5s forwards; font-weight: bold;}
+        .toast.error { border-left-color: #e74c3c; }
+        .toast.info { border-left-color: #3498db; }
+        .toast.success { border-left-color: #2ecc71; }
+        @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateX(120%); } }
+
         #dondur-uyari { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 9999; color: #d4af37; justify-content: center; align-items: center; font-size: 24px; text-align: center; flex-direction: column; }
         .rotate-icon { font-size: 50px; margin-bottom: 20px; animation: rotatePhone 2s infinite; }
         @keyframes rotatePhone { 0% { transform: rotate(0deg); } 50% { transform: rotate(-90deg); } 100% { transform: rotate(-90deg); } }
-        
-        @media screen and (max-width: 768px) and (orientation: portrait) {
-            #dondur-uyari { display: flex; }
-            #oyun-wrapper, #giris-ekrani, #hub-ekrani, #bitis-ekrani { display: none !important; }
-        }
+        @media screen and (max-width: 768px) and (orientation: portrait) { #dondur-uyari { display: flex; } #oyun-wrapper, #giris-ekrani, #hub-ekrani, #bitis-ekrani { display: none !important; } }
 
         .tam-ekran { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .kutu { background: #1e1e1e; padding: 40px; border-radius: 15px; text-align: center; border: 2px solid #d4af37; box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); width: 400px; max-width: 90vw;}
         .kutu h1, .kutu h2 { margin-top: 0; color: #d4af37; font-weight: 300; letter-spacing: 2px;}
         .kutu input { width: 80%; padding: 12px; font-size: 18px; border-radius: 8px; border: 1px solid #444; background: #111; color: white; margin-bottom: 20px; outline: none; text-align: center; font-weight: bold;}
-        
         #oda-listesi { margin-top: 20px; text-align: left; max-height: 200px; overflow-y: auto; }
         .oda-satiri { background: #2a2a2a; padding: 10px; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #d4af37;}
         
@@ -41,39 +40,33 @@
             width: 1350px; height: 750px; background: radial-gradient(circle at center, #2a2c30 0%, #0d0d0f 100%);
             position: relative; border-radius: 40px; box-shadow: inset 0 0 80px rgba(0,0,0,0.9), 0 20px 50px rgba(0,0,0,0.8); 
             border: 12px solid #1a1a1a; display: flex; flex-direction: column; justify-content: space-between; 
-            transform-origin: top center; flex-shrink: 0;
+            transform-origin: top center; flex-shrink: 0; transition: border-color 0.4s, box-shadow 0.4s;
         }
         #masa-container::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border: 1px solid rgba(255,255,255,0.05); border-radius: 30px; pointer-events: none;}
+        .sira-bende-border { border-color: #2ecc71 !important; box-shadow: inset 0 0 80px rgba(0,0,0,0.9), 0 0 50px rgba(46, 204, 113, 0.4) !important; }
+        .aktif-sira-isim { box-shadow: 0 0 20px rgba(46, 204, 113, 0.8) !important; border-color: #2ecc71 !important; color: #2ecc71 !important; text-shadow: 0 0 10px #2ecc71 !important; }
 
-        #chat-container {
-            width: 90%; max-width: 1350px; height: 250px;
-            background: radial-gradient(circle at top, #2a2c30 0%, #0d0d0f 100%);
-            border: 6px solid #1a1a1a; border-radius: 30px;
-            display: flex; flex-direction: column; position: relative;
-            box-shadow: inset 0 0 40px rgba(0,0,0,0.9), 0 20px 50px rgba(0,0,0,0.8);
-            overflow: hidden; flex-shrink: 0;
-        }
+        #chat-container { width: 90%; max-width: 1350px; height: 250px; background: radial-gradient(circle at top, #2a2c30 0%, #0d0d0f 100%); border: 6px solid #1a1a1a; border-radius: 30px; display: flex; flex-direction: column; position: relative; box-shadow: inset 0 0 40px rgba(0,0,0,0.9), 0 20px 50px rgba(0,0,0,0.8); overflow: hidden; flex-shrink: 0;}
         #chat-header { background: rgba(0,0,0,0.5); padding: 15px; text-align: center; font-size: 16px; font-weight: bold; color: #d4af37; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 2px; text-transform: uppercase;}
         #chat-mesajlar { flex: 1; padding: 15px 25px; overflow-y: auto; font-size: 14px; color: #ecf0f1; display: flex; flex-direction: column; gap: 10px; word-wrap: break-word;}
+        .system-msg { color: #f1c40f; font-style: italic; font-size: 12px;}
         #chat-input-alan { display: flex; padding: 15px 20px 30px; background: rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.05);}
         #chat-input { flex: 1; background: rgba(0,0,0,0.6); border: 1px solid #444; padding: 12px 15px; color: white; outline: none; font-size: 14px; border-radius: 25px 0 0 25px; transition: 0.2s;}
-        #chat-input:focus { border-color: #d4af37; }
-        #btn-chat-gonder { background: linear-gradient(to bottom, #f3e5ab, #d4af37); color: black; border: none; padding: 0 20px; font-weight: bold; cursor: pointer; font-size: 14px; border-radius: 0 25px 25px 0; transition: 0.2s;}
+        #btn-chat-gonder { background: linear-gradient(to bottom, #f3e5ab, #d4af37); color: black; border: none; padding: 0 20px; font-weight: bold; cursor: pointer; font-size: 14px; border-radius: 0 25px 25px 0;}
 
-        .oyuncu-etiket { position: absolute; background: rgba(0,0,0,0.6); border: 1px solid #d4af37; padding: 4px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; color: #ecf0f1; letter-spacing: 1px; z-index: 10;}
+        .oyuncu-etiket { position: absolute; background: rgba(0,0,0,0.6); border: 1px solid #d4af37; padding: 4px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; color: #ecf0f1; letter-spacing: 1px; z-index: 10; transition: 0.3s;}
         #etiket-top { top: 20px; left: 50%; transform: translateX(-50%); }
         #etiket-left { top: 50%; left: 20px; transform: translateY(-50%); }
         #etiket-right { top: 50%; right: 20px; transform: translateY(-50%); }
 
+        /* RAKİP ÇÖPLERİ - KARŞININ ÇÖPÜ DE SOLA HİZALANDI */
         .rakip-cop { position: absolute; width: 50px; height: 72px; background: rgba(0,0,0,0.3); border: 1px dashed rgba(255,255,255,0.2); border-radius: 6px; display: flex; justify-content: center; align-items: center;}
-        #alan-cop-top { top: 55px; left: 50%; transform: translateX(-50%); }
-        #alan-cop-left { top: 15%; left: 40px; }
+        #alan-cop-top { top: 20px; left: 160px; } 
         #alan-cop-right { top: 15%; right: 40px; }
 
         #masa-ortasi { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); width: 90%; height: 280px; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box;}
         #acilan-seriler { width: 65%; display: flex; flex-wrap: wrap; gap: 15px; align-content: flex-start; }
         #acilan-ciftler { width: 30%; display: flex; flex-direction: column; flex-wrap: wrap; gap: 8px; align-content: flex-end; }
-        
         .acilan-per { display: flex; gap: 1px; background: transparent; padding: 0; box-shadow: 2px 2px 10px rgba(0,0,0,0.5); border-radius: 4px; transition: 0.2s; cursor: pointer;}
         .acilan-per.drag-over { transform: scale(1.05); box-shadow: 0 0 15px #d4af37;}
 
@@ -94,18 +87,18 @@
         
         .oyun-slotu { width: 50px; height: 72px; background: rgba(0,0,0,0.5); border: 2px solid #333; border-radius: 6px; display: flex; justify-content: center; align-items: center; position: relative; box-shadow: inset 0 0 10px #000; cursor: pointer;}
         .oyun-slotu.yandan-alinabilir { border-color: #2ecc71; box-shadow: 0 0 15px rgba(46, 204, 113, 0.4); }
-        
-        /* Çöpe atma uyarısı (Taş seçildiğinde yanar) */
         .hedef-belirgin { animation: pulseRed 1s infinite; border-color: #e74c3c !important; }
         @keyframes pulseRed { 0% {box-shadow: 0 0 10px #e74c3c;} 50% {box-shadow: 0 0 25px #e74c3c;} 100% {box-shadow: 0 0 10px #e74c3c;} }
 
+        /* GÖRÜNMEZ ISTAKA SLOTLARI */
         #benim-istakam { 
             background: linear-gradient(to bottom, #2b2b2b 0%, #1a1a1a 100%); border: 2px solid #000; border-top: 4px solid #444; border-radius: 8px; 
             padding: 12px; box-shadow: 0 15px 30px rgba(0,0,0,0.9), inset 0 5px 15px rgba(0,0,0,0.8);
             display: grid; grid-template-columns: repeat(15, 48px); grid-template-rows: repeat(2, 70px); gap: 2px; position: relative;
         }
         #benim-istakam::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 4px; background: #0a0a0a; transform: translateY(-50%); pointer-events: none; border-bottom: 1px solid #333;}
-        .istaka-slot { width: 48px; height: 70px; background-color: rgba(0,0,0,0.3); border-radius: 4px; box-shadow: inset 1px 1px 5px rgba(0,0,0,0.8); cursor: pointer; }
+        .istaka-slot { width: 48px; height: 70px; background-color: transparent; border-radius: 4px; cursor: pointer; }
+        .istaka-slot.drag-over { background-color: rgba(255,255,255,0.05); border: 1px dashed #555; box-sizing: border-box; }
         
         .tas { 
             width: 48px; height: 70px; background: linear-gradient(to bottom, #fdfbf7 0%, #e9e4d0 100%); 
@@ -115,23 +108,21 @@
             padding-top: 5px; box-sizing: border-box; position: relative; touch-action: none;
         }
         .tas .deger { font-size: 26px; line-height: 1; }
-        .tas .yildiz { position: absolute; bottom: 9px; font-size: 14px; line-height: 1;}
+        .tas .yildiz { position: absolute; bottom: 12px; font-size: 14px; line-height: 1;} /* YILDIZ NİZAMİ ORTALANDI */
         
         .tas.dragging { opacity: 0.4; }
         .gecerli-per { box-shadow: 0 0 12px #d4af37, inset 0 0 4px #d4af37 !important; border-color: #d4af37 !important; transform: translateY(-4px); }
-        
-        /* TIKLA-TAŞI SEÇİM STİLİ */
         .aktif-secili { transform: translateY(-20px) scale(1.1) !important; box-shadow: 0 15px 25px rgba(212, 175, 55, 0.9) !important; border-color: #f1c40f !important; z-index: 100; }
 
         .kirmizi { color: #d32f2f; } .siyah { color: #212121; } .mavi { color: #1976d2; } .sari { color: #f57f17; }
         .sahte { color: #8e44ad; }
         .sahte .deger { font-size: 30px; margin-top: 5px;}
-
         .kapali-tas { background: linear-gradient(to bottom, #fdfbf7, #e9e4d0) !important; border: 1px solid #c8c0b0 !important; border-bottom: 3px solid #b0a590 !important; }
         .kapali-tas .deger, .kapali-tas .yildiz { display: none !important; }
 
         #ust-bilgi { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 20;}
-        #durum-cubugu { font-size: 14px; font-weight: bold; color: #d4af37; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 15px; border: 1px solid #444;}
+        #durum-cubugu { font-size: 14px; font-weight: bold; color: #d4af37; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 15px; border: 1px solid #444; height: 28px; line-height: 18px; box-sizing: border-box;}
+        #sure-kapsayici { font-size: 14px; font-weight: bold; color: white; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 15px; border: 1px solid #d4af37; margin-left: 10px; height: 28px; line-height: 18px; box-sizing: border-box; display: none;}
         
         .btn-gorsel { background-color: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; padding: 4px; gap: 3px; cursor: pointer; transition: 0.2s; width: 48%;}
         .btn-gorsel:hover { border-color: #d4af37; background-color: #222;}
@@ -152,15 +143,16 @@
 </head>
 <body>
 
+    <div id="toast-container"></div>
     <div id="dondur-uyari">
         <div class="rotate-icon">↻</div>
         <div>Lütfen Cihazınızı Yan Çevirin</div>
-        <div style="font-size: 14px; margin-top: 10px; color:#aaa;">Okey en iyi yatay ekranda oynanır.</div>
+        <div style="font-size: 14px; margin-top: 10px; color:#aaa;">Area51 Okey en iyi yatay ekranda oynanır.</div>
     </div>
 
     <div id="giris-ekrani" class="tam-ekran">
         <div class="kutu">
-            <h1>101 OKEY VIP</h1>
+            <h1>Area51 Okey</h1>
             <input type="text" id="oyuncu-isim-input" placeholder="Adını Gir" maxlength="12">
             <button class="btn-gold" id="btn-kimlik-olustur">Masaya Otur</button>
         </div>
@@ -187,7 +179,10 @@
         
         <div id="masa-container">
             <div id="ust-bilgi">
-                <div id="durum-cubugu">Bağlanılıyor...</div>
+                <div style="display: flex;">
+                    <div id="durum-cubugu">Bağlanılıyor...</div>
+                    <div id="sure-kapsayici">Süre: <span id="sure-sayaci" style="color: #2ecc71;">60</span>s</div>
+                </div>
                 <div style="display: flex; gap: 10px;">
                     <button id="btn-oyunu-baslat" class="btn-gold" style="display:none; padding: 5px 15px; font-size: 13px;">Oyunu Başlat</button>
                     <button id="btn-masadan-ayril" class="btn-kirmizi">Masadan Ayrıl</button>
@@ -208,23 +203,18 @@
 
             <div id="alt-alan">
                 <div class="sol-panel">
-                    <div class="bilgi-kutusu">
-                        <div>Seri Puanı</div><span id="secili-seri-puan">0</span>
-                    </div>
-                    <div class="bilgi-kutusu">
-                        <div>Çiftler</div><span id="secili-cift-sayisi">0</span><span style="color:#666; font-size:12px;">/5</span>
-                    </div>
+                    <div class="bilgi-kutusu"><div>Seri Puanı</div><span id="secili-seri-puan">0</span></div>
+                    <div class="bilgi-kutusu"><div>Çiftler</div><span id="secili-cift-sayisi">0</span><span style="color:#666; font-size:12px;">/5</span></div>
                     <div class="aksiyon-butonlari">
                         <button class="btn-aksiyon" id="btn-seri-ac" disabled>Seri Aç</button>
                         <button class="btn-aksiyon" id="btn-cift-ac" disabled>Çift Aç</button>
                     </div>
                     <div class="aksiyon-butonlari" style="margin-top: 2px;">
-                        <button class="btn-gorsel" id="btn-seri-diz" title="Seri Diz">
-                            <div class="mini-tas">1</div><div class="mini-tas">2</div><div class="mini-tas">3</div>
-                        </button>
-                        <button class="btn-gorsel" id="btn-cift-diz" title="Çift Diz">
-                            <div class="mini-tas">7</div><div class="mini-tas">7</div>
-                        </button>
+                        <button class="btn-gorsel" id="btn-seri-diz" title="Seri Diz"><div class="mini-tas">1</div><div class="mini-tas">2</div><div class="mini-tas">3</div></button>
+                        <button class="btn-gorsel" id="btn-cift-diz" title="Çift Diz"><div class="mini-tas">7</div><div class="mini-tas">7</div></button>
+                    </div>
+                    <div class="aksiyon-butonlari" style="margin-top: 2px;">
+                        <button class="btn-aksiyon" id="btn-geri-topla" style="width: 100%; border-color: #e74c3c;">Geri Topla</button>
                     </div>
                 </div>
 
@@ -242,11 +232,10 @@
                         <div class="oyun-slotu" id="gosterge-alani" style="background: transparent; border:none; box-shadow:none; transform: scale(0.9);"></div>
                     </div>
                     <div class="etkilesim-alani">
-                        <div class="etkilesim-baslik" style="color: #d4af37;">Banka (<span id="kalan-tas-sayisi"></span>)</div>
-                        <div class="oyun-slotu kapali-tas" id="deste-tas" draggable="false" style="cursor: pointer;"></div>
-                    </div>
+                        <div class="etkilesim-baslik" style="color: #d4af37;"><span id="kalan-tas-sayisi"></span></div>
+                        <div class="oyun-slotu kapali-tas" id="deste-tas" draggable="false"></div> </div>
                     <div class="etkilesim-alani">
-                        <div class="etkilesim-baslik" id="isim-bottom" style="color: white;">Sen</div>
+                        <div class="etkilesim-baslik" id="isim-bottom" style="color: white; border: 1px solid transparent; padding: 4px 15px; border-radius: 20px; transition: 0.3s;">Sen</div>
                         <div class="oyun-slotu" id="cop-bottom"></div>
                     </div>
                 </div>
@@ -283,65 +272,99 @@
         const btnCiftAc = document.getElementById('btn-cift-ac');
         const btnYandanIptal = document.getElementById('btn-yandan-iptal');
         const btnOyunuBaslat = document.getElementById('btn-oyunu-baslat');
+        const btnGeriTopla = document.getElementById('btn-geri-topla');
 
         let draggedTas = null; let draggedFromIndex = null;
         let benimSira = false; let benimElim = Array(30).fill(null); 
         let oyunOkeyi = null; let hedefDesteSlot = null; let benimIndex = 0; let isimlerListesi = [];
-        let gecerliAcmayaHazirGruplar = []; let ciftGruplari = [];
+        let gecerliAcmayaHazirGruplar = []; let ciftGruplari = []; let seciliTasId = null;
+        let turnTimerInterval;
 
-        // MOBİL TIKLA-TAŞI SİSTEMİ İÇİN KÜRESEL SEÇİM
-        let seciliTasId = null;
+        function showToast(message, type="info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.innerText = message;
+            container.appendChild(toast); setTimeout(() => { if(toast.parentElement) toast.remove(); }, 4000);
+        }
 
-        document.addEventListener('dragend', () => { if (draggedTas) { draggedTas.classList.remove('dragging'); draggedTas = null; }});
+        // ÇOK DAHA KALIN "GÜM" SESİ
+        function playTurnSound() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext(); 
+                const osc = ctx.createOscillator(); 
+                const gain = ctx.createGain();
+                
+                osc.type = 'sine'; 
+                osc.frequency.setValueAtTime(100, ctx.currentTime); 
+                osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.4); 
+                
+                gain.gain.setValueAtTime(0, ctx.currentTime); 
+                gain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.05); 
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4); 
+                
+                osc.connect(gain); gain.connect(ctx.destination); 
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.45);
+            } catch(e) {}
+        }
+
+        function siraParlamasiGuncelle(aktifSira) {
+            document.querySelectorAll('.oyuncu-etiket, #isim-bottom').forEach(el => el.classList.remove('aktif-sira-isim'));
+            if (aktifSira === -1) { document.getElementById('masa-container').classList.remove('sira-bende-border'); return; }
+            if (aktifSira === benimIndex) { document.getElementById('isim-bottom').classList.add('aktif-sira-isim'); document.getElementById('masa-container').classList.add('sira-bende-border'); } 
+            else {
+                document.getElementById('masa-container').classList.remove('sira-bende-border');
+                if (aktifSira === (benimIndex + 1) % 4) document.getElementById('etiket-right').classList.add('aktif-sira-isim');
+                else if (aktifSira === (benimIndex + 2) % 4) document.getElementById('etiket-top').classList.add('aktif-sira-isim');
+                else if (aktifSira === (benimIndex + 3) % 4) document.getElementById('etiket-left').classList.add('aktif-sira-isim');
+            }
+        }
+
+        function startClientTimer(endTime) {
+            clearInterval(turnTimerInterval); document.getElementById('sure-kapsayici').style.display = 'block';
+            const timerEl = document.getElementById('sure-sayaci');
+            turnTimerInterval = setInterval(() => {
+                let left = Math.ceil((endTime - Date.now()) / 1000);
+                if (left < 0) left = 0; timerEl.innerText = left; timerEl.style.color = left <= 10 ? '#e74c3c' : '#2ecc71';
+            }, 1000);
+        }
+
+        // DRAG&DROP GÜVENLİK KİLİDİ
+        document.addEventListener('dragend', () => { 
+            document.querySelectorAll('.tas').forEach(t => t.classList.remove('dragging')); 
+            draggedTas = null; 
+        });
 
         function boyutlandir() {
-            const masa = document.getElementById('masa-container');
-            const wrapper = document.getElementById('oyun-wrapper');
+            const masa = document.getElementById('masa-container'); const wrapper = document.getElementById('oyun-wrapper');
             if(wrapper.style.display === 'none') return;
-            let availableWidth = window.innerWidth * 0.95;
-            let scale = availableWidth / 1350;
-            if (scale > 1) scale = 1; 
-            masa.style.transform = `scale(${scale})`;
-            let scaledHeight = 750 * scale;
-            masa.style.marginBottom = `-${750 - scaledHeight}px`;
+            let scale = (window.innerWidth * 0.95) / 1350; if (scale > 1) scale = 1; 
+            masa.style.transform = `scale(${scale})`; masa.style.marginBottom = `-${750 - (750 * scale)}px`;
         }
         window.addEventListener('resize', boyutlandir);
 
-        let myPlayerId = localStorage.getItem('okey_playerId');
-        let myPlayerName = localStorage.getItem('okey_playerName');
+        let myPlayerId = localStorage.getItem('okey_playerId'); let myPlayerName = localStorage.getItem('okey_playerName');
         if (!myPlayerId) { myPlayerId = Math.random().toString(36).substr(2, 9); localStorage.setItem('okey_playerId', myPlayerId); }
-        if (myPlayerName) { socket.emit('kimlikBildir', { playerId: myPlayerId, isim: myPlayerName }); } 
-        else { document.getElementById('giris-ekrani').style.display = 'flex'; }
+        if (myPlayerName) socket.emit('kimlikBildir', { playerId: myPlayerId, isim: myPlayerName }); else document.getElementById('giris-ekrani').style.display = 'flex';
 
         document.getElementById('btn-kimlik-olustur').addEventListener('click', () => {
             let isim = document.getElementById('oyuncu-isim-input').value.trim();
             if(isim) { localStorage.setItem('okey_playerName', isim); socket.emit('kimlikBildir', { playerId: myPlayerId, isim: isim }); document.getElementById('giris-ekrani').style.display = 'none'; }
         });
 
-        document.getElementById('btn-masadan-ayril').addEventListener('click', () => {
-            socket.emit('masadanAyril');
-            document.getElementById('oyun-wrapper').style.display = 'none';
-        });
+        document.getElementById('btn-masadan-ayril').addEventListener('click', () => { socket.emit('masadanAyril'); document.getElementById('oyun-wrapper').style.display = 'none'; });
 
-        function gonderChat() {
-            let input = document.getElementById('chat-input');
-            let val = input.value.trim();
-            if(val) { socket.emit('chatMesaji', val); input.value = ''; }
-        }
-        document.getElementById('btn-chat-gonder').addEventListener('click', gonderChat);
-        document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key==='Enter') gonderChat(); });
+        function gonderChat() { let input = document.getElementById('chat-input'); let val = input.value.trim(); if(val) { socket.emit('chatMesaji', val); input.value = ''; } }
+        document.getElementById('btn-chat-gonder').addEventListener('click', gonderChat); document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key==='Enter') gonderChat(); });
 
         socket.on('yeniChatMesaji', (data) => {
-            let kutu = document.getElementById('chat-mesajlar');
-            let div = document.createElement('div');
-            div.innerHTML = `<span style="color:#d4af37; font-weight:bold;">${data.isim}:</span> ${data.mesaj}`;
-            kutu.appendChild(div);
-            kutu.scrollTop = kutu.scrollHeight;
+            let kutu = document.getElementById('chat-mesajlar'); let div = document.createElement('div');
+            if(data.type === 'system') div.className = 'system-msg';
+            div.innerHTML = data.type === 'system' ? `[SİSTEM]: ${data.mesaj}` : `<span style="color:#d4af37; font-weight:bold;">${data.isim}:</span> ${data.mesaj}`;
+            kutu.appendChild(div); kutu.scrollTop = kutu.scrollHeight;
         });
 
-        socket.on('hubGoster', (odalar) => {
-            document.getElementById('giris-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'none'; document.getElementById('hub-ekrani').style.display = 'flex'; renderHub(odalar);
-        });
+        socket.on('hubGoster', (odalar) => { document.getElementById('giris-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'none'; document.getElementById('hub-ekrani').style.display = 'flex'; renderHub(odalar); });
         socket.on('hubGuncelle', (odalar) => { if(document.getElementById('hub-ekrani').style.display === 'flex') renderHub(odalar); });
         document.getElementById('btn-oda-kur').addEventListener('click', () => socket.emit('odaOlustur'));
 
@@ -352,27 +375,22 @@
                 let btnDisabled = (!amIInRoom && (oda.status !== 'waiting' || oda.playerCount >= 4)) ? 'disabled' : '';
                 let btnText = (amIInRoom && oda.status === 'playing') ? 'Geri Dön' : 'Katıl';
                 let s = document.createElement('div'); s.className = 'oda-satiri';
-                s.innerHTML = `<div><span style="color:#d4af37; font-weight:bold;">${oda.name}</span><br><span style="font-size:12px; color:#888;">Oyuncu: ${oda.playerCount}/4</span></div> 
-                               <button class="btn-gold" style="padding: 5px 15px; font-size:14px;" ${btnDisabled} onclick="socket.emit('odayaKatil', '${oda.id}')">${btnText}</button>`;
+                s.innerHTML = `<div><span style="color:#d4af37; font-weight:bold;">${oda.name}</span><br><span style="font-size:12px; color:#888;">Oyuncu: ${oda.playerCount}/4</span></div> <button class="btn-gold" style="padding: 5px 15px; font-size:14px;" ${btnDisabled} onclick="socket.emit('odayaKatil', '${oda.id}')">${btnText}</button>`;
                 div.appendChild(s);
             });
         }
 
         socket.on('odaGuncellendi', (data) => {
-            document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex';
-            boyutlandir(); 
+            document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; boyutlandir(); 
             isimlerListesi = data.players;
             if (isimlerListesi.length > 0) {
                 let mIdx = isimlerListesi.findIndex(isim => isim === myPlayerName) || 0;
-                document.getElementById('isim-bottom').innerText = "Sen";
-                document.getElementById('etiket-right').innerText = isimlerListesi[(mIdx + 1) % 4] || "Bekleniyor";
-                document.getElementById('etiket-top').innerText = isimlerListesi[(mIdx + 2) % 4] || "Bekleniyor";
-                document.getElementById('etiket-left').innerText = isimlerListesi[(mIdx + 3) % 4] || "Bekleniyor";
+                document.getElementById('isim-bottom').innerText = "Sen"; document.getElementById('etiket-right').innerText = isimlerListesi[(mIdx + 1) % 4] || "Bekleniyor";
+                document.getElementById('etiket-top').innerText = isimlerListesi[(mIdx + 2) % 4] || "Bekleniyor"; document.getElementById('etiket-left').innerText = isimlerListesi[(mIdx + 3) % 4] || "Bekleniyor";
             }
             if (data.status === 'waiting') {
-                if (myPlayerId === data.hostId) btnOyunuBaslat.style.display = data.players.length === 4 ? 'block' : 'none';
-                else btnOyunuBaslat.style.display = 'none';
-                durumCubugu.innerText = `Oda: ${data.players.length}/4 - Oyunun başlaması bekleniyor...`;
+                if (myPlayerId === data.hostId) btnOyunuBaslat.style.display = data.players.length === 4 ? 'block' : 'none'; else btnOyunuBaslat.style.display = 'none';
+                durumCubugu.innerText = `Oda: ${data.players.length}/4 - Bekleniyor...`; siraParlamasiGuncelle(-1); document.getElementById('sure-kapsayici').style.display = 'none'; clearInterval(turnTimerInterval);
             } else { btnOyunuBaslat.style.display = 'none'; }
         });
 
@@ -383,72 +401,64 @@
 
         function isSetValid(group) {
             if (group.length < 3 || group.length > 4) return false;
-            let n = group.map(t => getEff(t)).filter(t => !isOkey(t));
-            if (n.length === 0) return true;
-            let c = new Set(); for (let t of n) { if (t.value !== n[0].value) return false; if (c.has(t.color)) return false; c.add(t.color); }
-            return true;
+            let n = group.map(t => getEff(t)).filter(t => !isOkey(t)); if (n.length === 0) return true;
+            let c = new Set(); for (let t of n) { if (t.value !== n[0].value) return false; if (c.has(t.color)) return false; c.add(t.color); } return true;
         }
 
         function isRunValid(group) {
             if (group.length < 3 || group.length > 13) return false;
-            let n = group.map(t => getEff(t)).filter(t => !isOkey(t));
-            if (n.length === 0) return true;
+            let n = group.map(t => getEff(t)).filter(t => !isOkey(t)); if (n.length === 0) return true;
             if (n.some(t => t.color !== n[0].color)) return false;
-            let vals = n.map(t => t.value).sort((a,b)=>a-b);
-            let okeyC = group.length - n.length;
-            let req = 0; for(let i=0; i<vals.length-1; i++){ let g = vals[i+1]-vals[i]-1; if(g<0) return false; req+=g; }
-            return req <= okeyC;
+            let vals = n.map(t => t.value).sort((a,b)=>a-b); let okeyC = group.length - n.length;
+            let req = 0; for(let i=0; i<vals.length-1; i++){ let g = vals[i+1]-vals[i]-1; if(g<0) return false; req+=g; } return req <= okeyC;
         }
 
         function isPairValid(group) {
-            if (group.length !== 2) return false;
-            let t1 = getEff(group[0]), t2 = getEff(group[1]);
-            let oc = (isOkey(t1) ? 1 : 0) + (isOkey(t2) ? 1 : 0);
-            if (oc > 0) return true; return t1.color === t2.color && t1.value === t2.value;
+            if (group.length !== 2) return false; let t1 = getEff(group[0]), t2 = getEff(group[1]);
+            let oc = (isOkey(t1) ? 1 : 0) + (isOkey(t2) ? 1 : 0); if (oc > 0) return true; return t1.color === t2.color && t1.value === t2.value;
         }
 
         function getGroupScore(group) {
-            let n = group.map(t => getEff(t)).filter(t => !isOkey(t));
-            if (n.length === 0) return 0;
+            let n = group.map(t => getEff(t)).filter(t => !isOkey(t)); if (n.length === 0) return 0;
             if (isSetValid(group)) return n[0].value * group.length;
-            
             let sortedNormals = [...n].sort((a,b) => a.value - b.value);
-            let score = 0; let startVal = sortedNormals[0].value; let expectedVal = startVal;
-            let okeysCount = group.length - n.length; let resultVals = [];
-
-            for (let i = 0; i < sortedNormals.length; i++) {
-                let currentVal = sortedNormals[i].value;
-                while (expectedVal < currentVal && okeysCount > 0) { resultVals.push(expectedVal); expectedVal++; okeysCount--; }
-                resultVals.push(currentVal); expectedVal++;
-            }
-            while (okeysCount > 0) {
-                if (expectedVal > 13) { startVal--; resultVals.unshift(startVal); } 
-                else { resultVals.push(expectedVal); expectedVal++; }
-                okeysCount--;
-            }
+            let score = 0; let startVal = sortedNormals[0].value; let expectedVal = startVal; let okeysCount = group.length - n.length; let resultVals = [];
+            for (let i = 0; i < sortedNormals.length; i++) { let currentVal = sortedNormals[i].value; while (expectedVal < currentVal && okeysCount > 0) { resultVals.push(expectedVal); expectedVal++; okeysCount--; } resultVals.push(currentVal); expectedVal++; }
+            while (okeysCount > 0) { if (expectedVal > 13) { startVal--; resultVals.unshift(startVal); } else { resultVals.push(expectedVal); expectedVal++; } okeysCount--; }
             return resultVals.reduce((a, b) => a + b, 0);
         }
 
-        function otomatikPuanHesapla() {
-            document.querySelectorAll('.tas').forEach(t => t.classList.remove('gecerli-per'));
-            gecerliAcmayaHazirGruplar = []; ciftGruplari = [];
-            let gruplar = []; let guncel = []; let idxHarita = [];
-            for (let i = 0; i < 30; i++) {
-                if (benimElim[i]) { guncel.push(benimElim[i]); idxHarita.push(i); } 
-                else { if (guncel.length > 0) { gruplar.push({t: guncel, idxl: idxHarita}); guncel = []; idxHarita = []; } }
+        function splitGroup(groupData) {
+            let g = groupData.t; let idxs = groupData.idxl; let len = g.length;
+            if (len <= 4 || isPairValid(g) || isSetValid(g)) return [groupData]; 
+            if (len === 5) return [groupData]; 
+            if (len === 6) return [{t: g.slice(0,3), idxl: idxs.slice(0,3)}, {t: g.slice(3,6), idxl: idxs.slice(3,6)}];
+            if (len === 7) return [{t: g.slice(0,4), idxl: idxs.slice(0,4)}, {t: g.slice(4,7), idxl: idxs.slice(4,7)}];
+            if (len >= 8) {
+                let chunks = []; let offset = 0; let remain = len;
+                while(remain > 5) { chunks.push({t: g.slice(offset, offset+4), idxl: idxs.slice(offset, offset+4)}); offset += 4; remain -= 4; }
+                if(remain === 5) chunks.push({t: g.slice(offset, offset+5), idxl: idxs.slice(offset, offset+5)});
+                else if(remain > 0) chunks.push({t: g.slice(offset, offset+remain), idxl: idxs.slice(offset, offset+remain)});
+                return chunks;
             }
+            return [groupData];
+        }
+
+        function otomatikPuanHesapla() {
+            document.querySelectorAll('.tas').forEach(t => t.classList.remove('gecerli-per')); gecerliAcmayaHazirGruplar = []; ciftGruplari = [];
+            let gruplar = []; let guncel = []; let idxHarita = [];
+            
+            // Tüm ıstaka tek parça (Köşelerde kopma yapmaz)
+            for (let i = 0; i < 30; i++) { if (benimElim[i]) { guncel.push(benimElim[i]); idxHarita.push(i); } else { if (guncel.length > 0) { gruplar.push({t: guncel, idxl: idxHarita}); guncel = []; idxHarita = []; } } }
             if (guncel.length > 0) gruplar.push({t: guncel, idxl: idxHarita});
 
             let totalSeriPuan = 0;
-            gruplar.forEach(g => {
-                if (isSetValid(g.t) || isRunValid(g.t)) {
-                    totalSeriPuan += getGroupScore(g.t); gecerliAcmayaHazirGruplar.push(g.t);
-                    g.idxl.forEach(idx => { let s = document.querySelector(`.istaka-slot[data-index='${idx}']`); if(s && s.firstChild) s.firstChild.classList.add('gecerli-per'); });
-                }
-                if (isPairValid(g.t)) {
-                    ciftGruplari.push(g.t);
-                    g.idxl.forEach(idx => { let s = document.querySelector(`.istaka-slot[data-index='${idx}']`); if(s && s.firstChild) s.firstChild.classList.add('gecerli-per'); });
-                }
+            gruplar.forEach(gRaw => {
+                let splitted = splitGroup(gRaw);
+                splitted.forEach(g => {
+                    if (isSetValid(g.t) || isRunValid(g.t)) { totalSeriPuan += getGroupScore(g.t); gecerliAcmayaHazirGruplar.push(g.t); g.idxl.forEach(idx => { let s = document.querySelector(`.istaka-slot[data-index='${idx}']`); if(s && s.firstChild) s.firstChild.classList.add('gecerli-per'); }); }
+                    if (isPairValid(g.t)) { ciftGruplari.push(g.t); g.idxl.forEach(idx => { let s = document.querySelector(`.istaka-slot[data-index='${idx}']`); if(s && s.firstChild) s.firstChild.classList.add('gecerli-per'); }); }
+                });
             });
             puanSpan.innerText = totalSeriPuan; ciftSpan.innerText = ciftGruplari.length;
             ciftSpan.style.color = ciftGruplari.length >= 5 ? "#2ecc71" : "#d4af37";
@@ -456,118 +466,101 @@
             btnSeriAc.disabled = gecerliAcmayaHazirGruplar.length === 0 || !benimSira;
             btnCiftAc.disabled = ciftGruplari.length < 5 || !benimSira;
             
-            // Seçili taş varsa sağ çöpü aydınlat (Mobil Click-to-Move rehberi)
-            if (seciliTasId !== null && benimSira) copBottom.classList.add('hedef-belirgin');
-            else copBottom.classList.remove('hedef-belirgin');
-
+            if (seciliTasId !== null && benimSira) copBottom.classList.add('hedef-belirgin'); else copBottom.classList.remove('hedef-belirgin');
             return { seri: gecerliAcmayaHazirGruplar, cift: ciftGruplari };
         }
 
-        function tasOlustur(tas, slotIndex) {
+        function tasOlustur(tas, isIstaka = true) {
             let div = document.createElement('div'); div.className = `tas ${tas.color}`; 
             let content = tas.color === 'sahte' ? `<div class="deger">★</div><div class="yildiz" style="opacity:0;">★</div>` : `<div class="deger">${tas.value}</div><div class="yildiz">★</div>`;
             if (isOkey(tas)) { content = ''; div.classList.add('kapali-tas'); }
-            div.innerHTML = content;
-            div.dataset.id = tas.id; div.dataset.color = tas.color; div.dataset.value = tas.value; div.draggable = true;
+            div.innerHTML = content; div.dataset.id = tas.id; div.dataset.color = tas.color; div.dataset.value = tas.value; 
             
-            // MOBİL UYUMLU TIKLAMA (SEÇME) ÖZELLİĞİ
-            div.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (seciliTasId === tas.id) seciliTasId = null; // Tıklamayı geri al
-                else seciliTasId = tas.id; // Seç
-                istakayiCiz(); // Görseli güncelle
-            });
-            
-            if (seciliTasId === tas.id) div.classList.add('aktif-secili');
-
-            div.ondragstart = (e) => { seciliTasId = tas.id; draggedTas = div; draggedFromIndex = slotIndex; e.dataTransfer.setData("type", "rackTile"); setTimeout(() => div.classList.add('dragging'), 0); };
-            div.ondragend = () => { if(draggedTas) draggedTas.classList.remove('dragging'); draggedTas = null; seciliTasId = null; istakayiCiz();};
+            if(isIstaka) {
+                div.draggable = true;
+                div.addEventListener('click', (e) => { e.stopPropagation(); if (seciliTasId === tas.id) seciliTasId = null; else seciliTasId = tas.id; istakayiCiz(); });
+                if (seciliTasId === tas.id) div.classList.add('aktif-secili');
+                div.ondragstart = (e) => { seciliTasId = tas.id; draggedTas = div; draggedFromIndex = benimElim.findIndex(x => x && x.id === tas.id); e.dataTransfer.setData("type", "rackTile"); setTimeout(() => div.classList.add('dragging'), 0); };
+                div.ondragend = () => { if(draggedTas) draggedTas.classList.remove('dragging'); draggedTas = null; seciliTasId = null; istakayiCiz();};
+            } else { div.draggable = false; }
             return div;
+        }
+
+        // AKILLI KAYDIRMA ALGORİTMASI (En yakın boşluğa kaydırır)
+        function moveTileInRack(fromIdx, toIdx) {
+            if (fromIdx === toIdx) return;
+            let tile = benimElim[fromIdx]; benimElim[fromIdx] = null;
+            
+            if (benimElim[toIdx] === null) { benimElim[toIdx] = tile; } 
+            else {
+                let leftNull = -1, rightNull = -1;
+                for(let k = toIdx - 1; k >= 0; k--) if(!benimElim[k]) { leftNull = k; break; }
+                for(let k = toIdx + 1; k <= 29; k++) if(!benimElim[k]) { rightNull = k; break; }
+                
+                let distL = leftNull !== -1 ? toIdx - leftNull : Infinity;
+                let distR = rightNull !== -1 ? rightNull - toIdx : Infinity;
+                
+                if (distR === Infinity && distL === Infinity) { benimElim[fromIdx] = benimElim[toIdx]; benimElim[toIdx] = tile; } 
+                else if (distR <= distL) { for (let k = rightNull; k > toIdx; k--) benimElim[k] = benimElim[k-1]; benimElim[toIdx] = tile; } 
+                else { for (let k = leftNull; k < toIdx; k++) benimElim[k] = benimElim[k+1]; benimElim[toIdx] = tile; }
+            }
         }
 
         function istakayiCiz() {
             istakaDiv.innerHTML = '';
             for (let i = 0; i < 30; i++) {
                 let slot = document.createElement('div'); slot.className = 'istaka-slot'; slot.dataset.index = i;
-                if (benimElim[i]) slot.appendChild(tasOlustur(benimElim[i], i));
+                if (benimElim[i]) slot.appendChild(tasOlustur(benimElim[i], true));
                 
-                // MOBİL TIKLA-TAŞI: BOŞ SLOTA TIKLAYINCA TAŞI ORAYA GÖNDER
                 slot.addEventListener('click', () => {
                     if (seciliTasId !== null) {
                         let fromIdx = benimElim.findIndex(t => t && t.id === seciliTasId);
-                        if (fromIdx !== -1 && !benimElim[i]) {
-                            benimElim[i] = benimElim[fromIdx]; benimElim[fromIdx] = null; seciliTasId = null; istakayiCiz();
-                        }
-                    } else {
-                        // Eğer taş seçili değilse ve boşluğa tıkladıysa, bankadan oraya taş çek
-                        if(benimSira && !document.getElementById('deste-tas').disabled) {
-                            hedefDesteSlot = i; socket.emit('ortadanCek');
-                        }
-                    }
+                        if (fromIdx !== -1) { moveTileInRack(fromIdx, i); seciliTasId = null; istakayiCiz(); }
+                    } else { if(benimSira && !document.getElementById('deste-tas').disabled) { hedefDesteSlot = i; socket.emit('ortadanCek'); } }
                 });
 
                 slot.ondragover = (e) => { e.preventDefault(); slot.classList.add('drag-over'); };
                 slot.ondragleave = (e) => slot.classList.remove('drag-over');
                 slot.ondrop = (e) => {
-                    e.preventDefault(); slot.classList.remove('drag-over');
-                    let dragType = e.dataTransfer.getData("type");
+                    e.preventDefault(); slot.classList.remove('drag-over'); let dragType = e.dataTransfer.getData("type");
                     if (dragType === "deckTile") { hedefDesteSlot = i; socket.emit('ortadanCek'); } 
-                    else if (dragType === "rackTile" && draggedFromIndex !== null) {
-                        let temp = benimElim[i]; benimElim[i] = benimElim[draggedFromIndex]; benimElim[draggedFromIndex] = temp; seciliTasId = null; istakayiCiz(); 
-                    }
+                    else if (dragType === "rackTile" && draggedFromIndex !== null) { moveTileInRack(draggedFromIndex, i); seciliTasId = null; istakayiCiz(); }
                 };
                 istakaDiv.appendChild(slot);
             }
             if (oyunOkeyi) otomatikPuanHesapla(); 
         }
 
-        // AKILLI SERİ DİZME ALGORİTMASI HATA DÜZELTMESİ (colorTiles -> renkliler)
-        document.getElementById('btn-seri-diz').addEventListener('click', () => {
-            seciliTasId = null; // Dizince seçimi kaldır
-            let compact = benimElim.filter(t => t !== null);
-            let okeys = compact.filter(t => isOkey(t)); let normals = compact.filter(t => !isOkey(t));
-            let used = new Set(); let gruplar = [];
+        socket.on('istakaGuncellendi', (yeniEl) => { benimElim = Array(30).fill(null); yeniEl.forEach((tas, i) => benimElim[i] = tas); istakayiCiz(); });
 
+        document.getElementById('btn-seri-diz').addEventListener('click', () => {
+            seciliTasId = null; let compact = benimElim.filter(t => t !== null); let okeys = compact.filter(t => isOkey(t)); let normals = compact.filter(t => !isOkey(t));
+            let used = new Set(); let gruplar = [];
             ['sari', 'kirmizi', 'siyah', 'mavi'].forEach(renk => {
-                let renkliler = normals.filter(t => getEff(t).color === renk).sort((a,b) => getEff(a).value - getEff(b).value);
+                let colorTiles = normals.filter(t => getEff(t).color === renk).sort((a,b) => getEff(a).value - getEff(b).value);
                 let keepExtracting = true;
                 while(keepExtracting) {
                     let currentRun = []; let toRemove = [];
-                    for(let i=0; i<renkliler.length; i++) {
-                        let tile = renkliler[i];
+                    for(let i=0; i<colorTiles.length; i++) {
+                        let tile = colorTiles[i];
                         if (currentRun.length === 0) { currentRun.push(tile); toRemove.push(i); }
                         else {
-                            let lastVal = getEff(currentRun[currentRun.length-1]).value;
-                            let val = getEff(tile).value;
-                            if (val === lastVal + 1) { currentRun.push(tile); toRemove.push(i); }
-                            else if (val === lastVal) { /* kopya */ }
-                            else if (val > lastVal + 1) {
-                                if (currentRun.length >= 3) break;
-                                else { currentRun = [tile]; toRemove = [i]; }
-                            }
+                            let lastVal = getEff(currentRun[currentRun.length-1]).value; let val = getEff(tile).value;
+                            if (val === lastVal + 1) { currentRun.push(tile); toRemove.push(i); } else if (val === lastVal) {} 
+                            else if (val > lastVal + 1) { if (currentRun.length >= 3) break; else { currentRun = [tile]; toRemove = [i]; } }
                         }
                     }
-                    if (currentRun.length >= 3) {
-                        gruplar.push(currentRun); currentRun.forEach(t => used.add(t.id));
-                        for(let i = toRemove.length - 1; i >= 0; i--) renkliler.splice(toRemove[i], 1);
-                    } else { keepExtracting = false; }
+                    if (currentRun.length >= 3) { gruplar.push(currentRun); currentRun.forEach(t => used.add(t.id)); for(let i = toRemove.length - 1; i >= 0; i--) colorTiles.splice(toRemove[i], 1); } else keepExtracting = false; 
                 }
             });
 
-            let kalanlar = normals.filter(t => !used.has(t.id));
-            let sayilar = {}; kalanlar.forEach(t => { let v = getEff(t).value; if(!sayilar[v]) sayilar[v] = []; sayilar[v].push(t); });
+            let kalanlar = normals.filter(t => !used.has(t.id)); let sayilar = {}; kalanlar.forEach(t => { let v = getEff(t).value; if(!sayilar[v]) sayilar[v] = []; sayilar[v].push(t); });
             for(let val in sayilar) {
                 let keepExtractingSets = true;
                 while(keepExtractingSets) {
                     let currentSet = []; let usedColors = new Set(); let toRemove = [];
-                    for(let i=0; i<sayilar[val].length; i++) {
-                        let tile = sayilar[val][i]; let color = getEff(tile).color;
-                        if(!usedColors.has(color)) { usedColors.add(color); currentSet.push(tile); toRemove.push(i); }
-                    }
-                    if (currentSet.length >= 3) {
-                        gruplar.push(currentSet); currentSet.forEach(t => used.add(t.id));
-                        for(let i = toRemove.length - 1; i >= 0; i--) sayilar[val].splice(toRemove[i], 1);
-                    } else { keepExtractingSets = false; }
+                    for(let i=0; i<sayilar[val].length; i++) { let tile = sayilar[val][i]; let color = getEff(tile).color; if(!usedColors.has(color)) { usedColors.add(color); currentSet.push(tile); toRemove.push(i); } }
+                    if (currentSet.length >= 3) { gruplar.push(currentSet); currentSet.forEach(t => used.add(t.id)); for(let i = toRemove.length - 1; i >= 0; i--) sayilar[val].splice(toRemove[i], 1); } else keepExtractingSets = false; 
                 }
             }
 
@@ -578,192 +571,136 @@
                     let colorTiles = kalanlar.filter(t => getEff(t).color === renk).sort((a,b) => getEff(a).value - getEff(b).value);
                     for(let i=0; i<colorTiles.length-1; i++) {
                         for(let j=i+1; j<colorTiles.length; j++) {
-                            let vI = getEff(colorTiles[i]).value; let vJ = getEff(colorTiles[j]).value;
-                            if (vI === vJ) continue; 
-                            let diff = vJ - vI;
-                            if(diff === 1 || diff === 2) {
-                                let okeyVal = diff === 1 ? (vJ < 13 ? vJ+1 : vI-1) : vI+1;
-                                if (okeyVal >= 1 && okeyVal <= 13) {
-                                    adaylar.push({ type: 'seri', score: vI + vJ + okeyVal, tiles: [colorTiles[i], colorTiles[j]], diff: diff });
-                                }
-                            }
+                            let vI = getEff(colorTiles[i]).value; let vJ = getEff(colorTiles[j]).value; if (vI === vJ) continue; let diff = vJ - vI;
+                            if(diff === 1 || diff === 2) { let okeyVal = diff === 1 ? (vJ < 13 ? vJ+1 : vI-1) : vI+1; if (okeyVal >= 1 && okeyVal <= 13) adaylar.push({ type: 'seri', score: vI + vJ + okeyVal, tiles: [colorTiles[i], colorTiles[j]], diff: diff }); }
                         }
                     }
                 });
-
-                let kalanSayilar = {};
-                kalanlar.forEach(t => { let v = getEff(t).value; if(!kalanSayilar[v]) kalanSayilar[v] = []; kalanSayilar[v].push(t); });
-                for(let val in kalanSayilar) {
-                    let tilesOfVal = kalanSayilar[val];
-                    for(let i=0; i<tilesOfVal.length-1; i++) {
-                        for(let j=i+1; j<tilesOfVal.length; j++) {
-                            if (getEff(tilesOfVal[i]).color !== getEff(tilesOfVal[j]).color) {
-                                adaylar.push({ type: 'es', score: parseInt(val)*3, tiles: [tilesOfVal[i], tilesOfVal[j]] });
-                            }
-                        }
-                    }
-                }
+                let kalanSayilar = {}; kalanlar.forEach(t => { let v = getEff(t).value; if(!kalanSayilar[v]) kalanSayilar[v] = []; kalanSayilar[v].push(t); });
+                for(let val in kalanSayilar) { let tilesOfVal = kalanSayilar[val]; for(let i=0; i<tilesOfVal.length-1; i++) { for(let j=i+1; j<tilesOfVal.length; j++) { if (getEff(tilesOfVal[i]).color !== getEff(tilesOfVal[j]).color) { adaylar.push({ type: 'es', score: parseInt(val)*3, tiles: [tilesOfVal[i], tilesOfVal[j]] }); } } } }
                 adaylar.sort((a,b) => b.score - a.score);
 
                 for(let aday of adaylar) {
                     if (okeys.length === 0) break;
                     if (!used.has(aday.tiles[0].id) && !used.has(aday.tiles[1].id)) {
                         used.add(aday.tiles[0].id); used.add(aday.tiles[1].id); let okeyTas = okeys.pop(); let yeniGrup = [];
-                        if (aday.type === 'seri') {
-                            if (aday.diff === 2) yeniGrup = [aday.tiles[0], okeyTas, aday.tiles[1]]; else yeniGrup = [aday.tiles[0], aday.tiles[1], okeyTas];
-                        } else { yeniGrup = [aday.tiles[0], aday.tiles[1], okeyTas]; }
+                        if (aday.type === 'seri') { if (aday.diff === 2) yeniGrup = [aday.tiles[0], okeyTas, aday.tiles[1]]; else yeniGrup = [aday.tiles[0], aday.tiles[1], okeyTas]; } else yeniGrup = [aday.tiles[0], aday.tiles[1], okeyTas];
                         gruplar.push(yeniGrup);
                     }
                 }
             }
-
-            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t));
-            sonKalanlar.sort((a,b) => getEff(a).color.localeCompare(getEff(b).color) || getEff(a).value - getEff(b).value);
-            let butunKalanlar = [...sonKalanlar, ...okeys]; 
-
-            benimElim = Array(30).fill(null); let index = 0;
-            gruplar.forEach(g => { g.forEach(t => { if(index < 30) benimElim[index++] = t; }); if(index < 30) index++; });
-            butunKalanlar.forEach(t => { while(index < 30 && benimElim[index] !== null) index++; if(index < 30) benimElim[index++] = t; });
-            istakayiCiz();
+            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); sonKalanlar.sort((a,b) => getEff(a).color.localeCompare(getEff(b).color) || getEff(a).value - getEff(b).value); let butunKalanlar = [...sonKalanlar, ...okeys]; 
+            benimElim = Array(30).fill(null); let index = 0; gruplar.forEach(g => { g.forEach(t => { if(index < 30) benimElim[index++] = t; }); if(index < 30) index++; }); butunKalanlar.forEach(t => { while(index < 30 && benimElim[index] !== null) index++; if(index < 30) benimElim[index++] = t; }); istakayiCiz();
         });
 
         document.getElementById('btn-cift-diz').addEventListener('click', () => {
-            seciliTasId = null;
-            let compact = benimElim.filter(t => t !== null); let okeys = compact.filter(t => isOkey(t)); let normals = compact.filter(t => !isOkey(t));
-            let ciftler = []; let used = new Set(); let ciftHaritasi = {};
-
+            seciliTasId = null; let compact = benimElim.filter(t => t !== null); let okeys = compact.filter(t => isOkey(t)); let normals = compact.filter(t => !isOkey(t)); let ciftler = []; let used = new Set(); let ciftHaritasi = {};
             normals.forEach(t => { let e = getEff(t); let key = e.color + '-' + e.value; if(!ciftHaritasi[key]) ciftHaritasi[key] = []; ciftHaritasi[key].push(t); });
             for(let key in ciftHaritasi) { if(ciftHaritasi[key].length >= 2) { ciftler.push([ciftHaritasi[key][0], ciftHaritasi[key][1]]); used.add(ciftHaritasi[key][0].id); used.add(ciftHaritasi[key][1].id); } }
-
             let kalanlar = normals.filter(t => !used.has(t.id)).sort((a,b) => getEff(b).value - getEff(a).value);
             for(let i=0; i<kalanlar.length; i++) { if(okeys.length > 0) { let okeyTas = okeys.pop(); ciftler.push([kalanlar[i], okeyTas]); used.add(kalanlar[i].id); } }
-
-            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); sonKalanlar.sort((a,b) => getEff(a).value - getEff(b).value || getEff(a).color.localeCompare(getEff(b).color));
-            let butunKalanlar = [...sonKalanlar, ...okeys];
-
-            benimElim = Array(30).fill(null); let index = 0;
-            ciftler.forEach(g => { g.forEach(t => { if(index < 30) benimElim[index++] = t; }); if(index < 30) index++; });
-            butunKalanlar.forEach(t => { while(index < 30 && benimElim[index] !== null) index++; if(index < 30) benimElim[index++] = t; });
-            istakayiCiz();
+            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); sonKalanlar.sort((a,b) => getEff(a).value - getEff(b).value || getEff(a).color.localeCompare(getEff(b).color)); let butunKalanlar = [...sonKalanlar, ...okeys];
+            benimElim = Array(30).fill(null); let index = 0; ciftler.forEach(g => { g.forEach(t => { if(index < 30) benimElim[index++] = t; }); if(index < 30) index++; }); butunKalanlar.forEach(t => { while(index < 30 && benimElim[index] !== null) index++; if(index < 30) benimElim[index++] = t; }); istakayiCiz();
         });
 
-        // MOBİL TIKLAYARAK BANKADAN ÇEKME VEYA SÜRÜKLEME
+        // TIKLAMA İLE İŞLEMLER
         desteTasDiv.addEventListener('click', () => { if(benimSira && !desteTasDiv.disabled) { hedefDesteSlot = null; socket.emit('ortadanCek'); }});
         desteTasDiv.ondragstart = (e) => { if(!benimSira) { e.preventDefault(); return; } e.dataTransfer.setData("type", "deckTile"); };
         
-        // MOBİL TIKLAYARAK SAĞA ATMA (ÇÖP)
-        copBottom.addEventListener('click', () => {
-            if (seciliTasId !== null && benimSira) {
-                let tasObj = benimElim.find(t => t && t.id === seciliTasId);
-                if (tasObj) { socket.emit('tasAt', { id: tasObj.id, color: tasObj.color, value: tasObj.value }); seciliTasId = null; }
-            }
-        });
+        copBottom.addEventListener('click', () => { if (seciliTasId !== null && benimSira) { let tasObj = benimElim.find(t => t && t.id === seciliTasId); if (tasObj) { socket.emit('tasAt', { id: tasObj.id, color: tasObj.color, value: tasObj.value }); seciliTasId = null; } } });
         copBottom.ondragover = (e) => { e.preventDefault(); copBottom.classList.add('drag-over'); };
         copBottom.ondragleave = (e) => copBottom.classList.remove('drag-over');
-        copBottom.ondrop = (e) => {
-            e.preventDefault(); copBottom.classList.remove('drag-over');
-            if (e.dataTransfer.getData("type") === "rackTile" && draggedTas && benimSira) { socket.emit('tasAt', { id: parseInt(draggedTas.dataset.id), color: draggedTas.dataset.color, value: parseInt(draggedTas.dataset.value) }); draggedTas = null; seciliTasId = null; }
-        };
+        copBottom.ondrop = (e) => { e.preventDefault(); copBottom.classList.remove('drag-over'); if (e.dataTransfer.getData("type") === "rackTile" && draggedTas && benimSira) { socket.emit('tasAt', { id: parseInt(draggedTas.dataset.id), color: draggedTas.dataset.color, value: parseInt(draggedTas.dataset.value) }); draggedTas = null; seciliTasId = null; } };
 
-        // MOBİL TIKLAYARAK SOLDAN ALMA
-        document.getElementById('cop-left').addEventListener('click', () => { if (benimSira && document.getElementById('cop-left').children.length > 0) socket.emit('yandanCek'); });
+        // SOL ÇÖP TIKLAMA HİÇBİR ZAMAN TAŞ SEÇMEZ, SADECE ÇEKER
+        document.getElementById('cop-left').addEventListener('click', (e) => { e.stopPropagation(); if (benimSira && document.getElementById('cop-left').children.length > 0) { seciliTasId = null; istakayiCiz(); socket.emit('yandanCek'); } });
 
-        btnSeriAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.seri.length > 0) { socket.emit('seriAcmaTalebi', res.seri); seciliTasId = null; }});
-        btnCiftAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.cift.length >= 5) { socket.emit('ciftAcmaTalebi', res.cift); seciliTasId = null; }});
+        btnSeriAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.seri.length > 0) { socket.emit('seriAcmaTalebi', res.seri); seciliTasId = null; } else showToast('Geçerli bir seri bulunamadı.', 'error'); });
+        btnCiftAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.cift.length >= 5) { socket.emit('ciftAcmaTalebi', res.cift); seciliTasId = null; } else showToast('Açmak için en az 5 çift gerekir.', 'error'); });
         btnYandanIptal.addEventListener('click', () => socket.emit('yandanAlmaIptal'));
+        btnGeriTopla.addEventListener('click', () => socket.emit('geriToplaTalebi'));
 
         socket.on('reconnectData', (data) => {
             document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('giris-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex';
-            boyutlandir(); seciliTasId = null;
-            oyunOkeyi = data.okey; benimIndex = data.benimIndex; isimlerListesi = data.isimler;
-            gostergeDiv.innerHTML = ''; gostergeDiv.appendChild(tasOlustur(data.gosterge, -1)); kalanTasSpan.innerText = data.kalanTas;
+            boyutlandir(); seciliTasId = null; oyunOkeyi = data.okey; benimIndex = data.benimIndex; isimlerListesi = data.isimler;
+            gostergeDiv.innerHTML = ''; gostergeDiv.appendChild(tasOlustur(data.gosterge, false)); kalanTasSpan.innerText = data.kalanTas;
             benimElim = Array(30).fill(null); data.istaka.forEach((tas, i) => benimElim[i] = tas);
             document.getElementById('etiket-right').innerText = isimlerListesi[(benimIndex + 1) % 4]; document.getElementById('etiket-top').innerText = isimlerListesi[(benimIndex + 2) % 4]; document.getElementById('etiket-left').innerText = isimlerListesi[(benimIndex + 3) % 4];
-            istakayiCiz(); renderMasa(data.ortayaAcilanTumPerler); renderCopler(data.yerdekiTaslar); durumCubugu.innerText = "Yeniden bağlandın. Oyun devam ediyor.";
+            istakayiCiz(); renderMasa(data.ortayaAcilanTumPerler); renderCopler(data.yerdekiTaslar); showToast("Yeniden bağlandın. Oyun devam ediyor.", "info");
         });
 
         socket.on('oyunBasladi', (data) => {
             oyunOkeyi = data.okey; benimIndex = data.benimIndex; isimlerListesi = data.isimler; seciliTasId = null;
             document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; document.getElementById('chat-mesajlar').innerHTML = '';
-            boyutlandir();
-            durumCubugu.innerText = "Oyun Başladı! Sıra bekleniyor...";
-            gostergeDiv.innerHTML = ''; gostergeDiv.appendChild(tasOlustur(data.gosterge, -1)); kalanTasSpan.innerText = data.kalanTas;
+            boyutlandir(); durumCubugu.innerText = "Oyun Başladı! Sıra bekleniyor...";
+            gostergeDiv.innerHTML = ''; gostergeDiv.appendChild(tasOlustur(data.gosterge, false)); kalanTasSpan.innerText = data.kalanTas;
             benimElim = Array(30).fill(null); data.istaka.forEach((tas, i) => benimElim[i] = tas);
             document.getElementById('etiket-right').innerText = isimlerListesi[(benimIndex + 1) % 4]; document.getElementById('etiket-top').innerText = isimlerListesi[(benimIndex + 2) % 4]; document.getElementById('etiket-left').innerText = isimlerListesi[(benimIndex + 3) % 4];
             istakayiCiz(); renderMasa([]); renderCopler({ 0: null, 1: null, 2: null, 3: null });
         });
 
         function renderMasa(masaPerler) {
-            if(!masaPerler) return;
-            serilerDiv.innerHTML = ''; ciftlerDiv.innerHTML = '';
+            if(!masaPerler) return; serilerDiv.innerHTML = ''; ciftlerDiv.innerHTML = '';
             masaPerler.forEach((per, index) => {
-                let perDiv = document.createElement('div'); perDiv.className = 'acilan-per';
-                per.forEach(tas => perDiv.appendChild(tasOlustur(tas, -1))); 
-                
-                // MOBİL TIKLA-İŞLE MANTIĞI
-                perDiv.addEventListener('click', () => {
-                    if (seciliTasId !== null && benimSira) { socket.emit('yereIsleTalebi', { tasId: seciliTasId, perIndex: index }); seciliTasId = null; }
-                });
-
-                perDiv.ondragover = (e) => { e.preventDefault(); perDiv.classList.add('drag-over'); };
-                perDiv.ondragleave = (e) => perDiv.classList.remove('drag-over');
+                let perDiv = document.createElement('div'); perDiv.className = 'acilan-per'; per.forEach(tas => perDiv.appendChild(tasOlustur(tas, false))); 
+                perDiv.addEventListener('click', () => { if (seciliTasId !== null && benimSira) { socket.emit('yereIsleTalebi', { tasId: seciliTasId, perIndex: index }); seciliTasId = null; } });
+                perDiv.ondragover = (e) => { e.preventDefault(); perDiv.classList.add('drag-over'); }; perDiv.ondragleave = (e) => perDiv.classList.remove('drag-over');
                 perDiv.ondrop = (e) => { e.preventDefault(); perDiv.classList.remove('drag-over'); if (e.dataTransfer.getData("type") === "rackTile" && draggedTas && benimSira) socket.emit('yereIsleTalebi', { tasId: draggedTas.dataset.id, perIndex: index }); };
-                let isPair = per.length >= 2 && per.every(t => getEff(t).color === getEff(per[0]).color && getEff(t).value === getEff(per[0]).value);
+                let isPair = isPairValid(per);
                 if (isPair) ciftlerDiv.appendChild(perDiv); else serilerDiv.appendChild(perDiv);
             });
         }
 
         function renderCopler(copler) {
             if(!copler) return;
-            const rCop = (id, tasVerisi) => { let alan = document.getElementById(id); alan.innerHTML = ''; if(tasVerisi) { let t = tasOlustur(tasVerisi, -1); t.style.transform = "scale(0.8)"; t.draggable = false; alan.appendChild(t); } };
-            rCop('cop-bottom', copler[benimIndex]); rCop('alan-cop-right', copler[(benimIndex + 1) % 4]);
-            rCop('alan-cop-top', copler[(benimIndex + 2) % 4]); 
+            const rCop = (id, tasVerisi) => { let alan = document.getElementById(id); alan.innerHTML = ''; if(tasVerisi) { let t = tasOlustur(tasVerisi, false); t.style.transform = "scale(0.8)"; alan.appendChild(t); } };
+            rCop('cop-bottom', copler[benimIndex]); rCop('alan-cop-right', copler[(benimIndex + 1) % 4]); rCop('alan-cop-top', copler[(benimIndex + 2) % 4]); 
             let solAlan = document.getElementById('cop-left'); solAlan.innerHTML = '';
-            if (copler[(benimIndex + 3) % 4]) { let t = tasOlustur(copler[(benimIndex + 3) % 4], -1); t.style.transform = "scale(0.8)"; t.draggable = false; solAlan.appendChild(t); }
+            if (copler[(benimIndex + 3) % 4]) { let t = tasOlustur(copler[(benimIndex + 3) % 4], false); t.style.transform = "scale(0.8)"; solAlan.appendChild(t); }
         }
 
         socket.on('coplerGuncellendi', renderCopler); socket.on('masaGuncellendi', renderMasa); socket.on('desteGuncellendi', (sayi) => { kalanTasSpan.innerText = sayi; });
 
         socket.on('siraSende', (data) => {
-            benimSira = true; btnYandanIptal.style.display = "none";
+            benimSira = true; btnYandanIptal.style.display = "none"; playTurnSound(); siraParlamasiGuncelle(benimIndex); startClientTimer(data.turnEndTime);
             if (data.ilkTurMu) { durumCubugu.innerText = "OYUN BAŞLADI: Sağ tarafa bir taş at."; durumCubugu.style.color = "#f39c12"; desteTasDiv.draggable = false; desteTasDiv.disabled = true;} 
             else { durumCubugu.innerText = "SIRA SENDE! Bankaya Dokun veya Soldan Al."; durumCubugu.style.color = "#2ecc71"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; if (data.soldanGelenTas) document.getElementById('cop-left').classList.add('yandan-alinabilir'); }
             otomatikPuanHesapla(); 
         });
 
-        socket.on('siraBaskasinda', (idx) => {
-            benimSira = false; durumCubugu.innerText = `Sıra ${isimlerListesi[idx]}'de...`; durumCubugu.style.color = "#aaa";
-            btnSeriAc.disabled = true; btnCiftAc.disabled = true; btnYandanIptal.style.display = "none"; desteTasDiv.draggable = false; desteTasDiv.disabled = true;
-            document.getElementById('cop-left').classList.remove('yandan-alinabilir');
+        socket.on('siraBaskasinda', (data) => {
+            benimSira = false; durumCubugu.innerText = `Sıra ${isimlerListesi[data.idx]}'de...`; durumCubugu.style.color = "#aaa";
+            siraParlamasiGuncelle(data.idx); startClientTimer(data.turnEndTime);
+            btnSeriAc.disabled = true; btnCiftAc.disabled = true; btnYandanIptal.style.display = "none"; desteTasDiv.draggable = false; desteTasDiv.disabled = true; document.getElementById('cop-left').classList.remove('yandan-alinabilir');
         });
 
         socket.on('tasCekildi', (tas) => {
-            if (hedefDesteSlot !== null && benimElim[hedefDesteSlot] === null) benimElim[hedefDesteSlot] = tas; 
-            else { let ilkBos = benimElim.findIndex(t => t === null); if(ilkBos !== -1) benimElim[ilkBos] = tas; }
+            if (hedefDesteSlot !== null && benimElim[hedefDesteSlot] === null) benimElim[hedefDesteSlot] = tas; else { let ilkBos = benimElim.findIndex(t => t === null); if(ilkBos !== -1) benimElim[ilkBos] = tas; }
             hedefDesteSlot = null; istakayiCiz(); durumCubugu.innerText = "Taş çektin. Sağ tarafa bir taş at."; durumCubugu.style.color = "#f39c12";
             desteTasDiv.draggable = false; desteTasDiv.disabled = true; document.getElementById('cop-left').classList.remove('yandan-alinabilir');
         });
 
         socket.on('tasAtildiOnay', (tasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === tasId) { benimElim[i] = null; break; } } istakayiCiz(); });
+        socket.on('tasAtildiOnay_Auto', (data) => { if (data.pId === myPlayerId) { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === data.tasId) { benimElim[i] = null; break; } } istakayiCiz(); } });
+        
         socket.on('yandanAldinZorunluAc', () => { btnYandanIptal.style.display = "inline-block"; });
         socket.on('yandanIptalEdildi', (silinecekTasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === silinecekTasId) { benimElim[i] = null; break; } } istakayiCiz(); btnYandanIptal.style.display = "none"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; });
-        socket.on('perAcildiOnay', (idler) => { for (let i = 0; i < 30; i++) { if (benimElim[i] && idler.includes(benimElim[i].id)) benimElim[i] = null; } istakayiCiz(); btnYandanIptal.style.display = "none"; });
+        socket.on('perAcildiOnay', (idler) => { for (let i = 0; i < 30; i++) { if (benimElim[i] && idler.includes(benimElim[i].id)) benimElim[i] = null; } istakayiCiz(); btnYandanIptal.style.display = "none"; showToast('Taşlar masaya açıldı!', 'success'); });
         socket.on('islemeBasarili', (tasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === parseInt(tasId)) { benimElim[i] = null; break; } } istakayiCiz(); });
-        
-        socket.on('okeyKazanildi', (okeyTas) => { let ilkBos = benimElim.findIndex(t => t === null); if(ilkBos !== -1) benimElim[ilkBos] = okeyTas; istakayiCiz(); durumCubugu.innerText = "ŞAHANE! Okey'i Çaldın."; durumCubugu.style.color = "#d4af37"; });
+        socket.on('okeyKazanildi', (okeyTas) => { let ilkBos = benimElim.findIndex(t => t === null); if(ilkBos !== -1) benimElim[ilkBos] = okeyTas; istakayiCiz(); showToast("ŞAHANE! Okey'i Çaldın.", 'success'); });
 
         socket.on('oyunBitti', (data) => {
-            document.getElementById('bitis-ekrani').style.display = 'flex';
+            document.getElementById('bitis-ekrani').style.display = 'flex'; siraParlamasiGuncelle(-1); clearInterval(turnTimerInterval); document.getElementById('sure-kapsayici').style.display = 'none';
             if (data.kazanan === -1) { document.getElementById('bitis-mesaji').innerText = "Oyun Berabere Bitti! Kimse Açamadı."; document.getElementById('bitis-mesaji').style.color = "#ecf0f1"; } 
             else { document.getElementById('bitis-mesaji').innerText = data.kazanan === benimIndex ? "Tebrikler, Oyunu Sen Kazandın! 🏆" : `Oyun Bitti! Kazanan: ${isimlerListesi[data.kazanan]}`; document.getElementById('bitis-mesaji').style.color = data.kazanan === benimIndex ? "#d4af37" : "#e74c3c"; }
             document.getElementById('bitis-sebebi').innerText = `Sebep: ${data.sebep}`;
-            let yazbozHTML = '';
-            data.skorlar.forEach(skor => { let renk = skor.puan > 0 ? '#e74c3c' : (skor.puan < 0 ? '#2ecc71' : '#d4af37'); yazbozHTML += `<div class="skor-satir"><span style="color:#eee">${skor.isim} <small style="color:#888; font-size:12px;">(${skor.durum})</small></span><span style="color:${renk}; font-weight:bold;">${skor.puan}</span></div>`; });
+            let yazbozHTML = ''; data.skorlar.forEach(skor => { let renk = skor.puan > 0 ? '#e74c3c' : (skor.puan < 0 ? '#2ecc71' : '#d4af37'); yazbozHTML += `<div class="skor-satir"><span style="color:#eee">${skor.isim} <small style="color:#888; font-size:12px;">(${skor.durum})</small></span><span style="color:${renk}; font-weight:bold;">${skor.puan}</span></div>`; });
             document.getElementById('yazboz-alani').innerHTML = yazbozHTML;
         });
 
         document.getElementById('btn-odaya-don').addEventListener('click', () => { document.getElementById('bitis-ekrani').style.display = 'none'; });
-        socket.on('hata', (mesaj) => alert(mesaj));
+        socket.on('hata', (mesaj) => showToast(mesaj, 'error'));
+        socket.on('bilgi', (mesaj) => showToast(mesaj, 'info'));
     </script>
 </body>
 </html>
