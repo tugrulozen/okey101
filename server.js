@@ -24,12 +24,18 @@ function createRoom(roomId, roomName, hostId) {
 
 function getPublicRooms() { return Object.values(rooms).map(r => ({ id: r.id, name: r.name, playerCount: r.players.length, status: r.status, playerIds: r.players.map(p => p.playerId) })); }
 
-function getRoomBySocket(socketId) { for (let rId in rooms) { if (rooms[rId].players.find(p => p.socketId === socketId)) return rooms[rId]; } return null; }
+function getRoomBySocket(socketId) {
+    for (let rId in rooms) { if (rooms[rId].players.find(p => p.socketId === socketId)) return rooms[rId]; }
+    return null;
+}
 
 function takeSnapshot(room, pInfo) {
     pInfo.turnState.snapshot = {
-        el: JSON.parse(JSON.stringify(pInfo.el)), perler: JSON.parse(JSON.stringify(room.ortayaAcilanTumPerler)),
-        perAcmisMi: pInfo.perAcmisMi, ciftAcmisMi: pInfo.ciftAcmisMi
+        el: JSON.parse(JSON.stringify(pInfo.el)),
+        perler: JSON.parse(JSON.stringify(room.ortayaAcilanTumPerler)),
+        perAcmisMi: pInfo.perAcmisMi,
+        ciftAcmisMi: pInfo.ciftAcmisMi,
+        toplamSeriIsleme: pInfo.turnState.toplamSeriIsleme || 0
     };
 }
 
@@ -39,11 +45,67 @@ function getOkeyRepresentedTile(group, okeyIndex, gameOkey) {
     if (normalTiles.length === 0) return null; 
 
     let isSet = normalTiles.every(t => t.value === normalTiles[0].value);
-    if (isSet) { return { isSet: true, value: normalTiles[0].value, presentColors: normalTiles.map(t=>t.color) }; } 
-    else {
-        let color = normalTiles[0].color; let firstNormalIdx = effTiles.findIndex(t => !Validator.isOkey(t, gameOkey));
-        let firstNormalVal = effTiles[firstNormalIdx].value; let targetVal = firstNormalVal + (okeyIndex - firstNormalIdx);
+    if (isSet) {
+        return { isSet: true, value: normalTiles[0].value, presentColors: normalTiles.map(t=>t.color) };
+    } else {
+        let color = normalTiles[0].color;
+        let firstNormalIdx = effTiles.findIndex(t => !Validator.isOkey(t, gameOkey));
+        let firstNormalVal = effTiles[firstNormalIdx].value;
+        let targetVal = firstNormalVal + (okeyIndex - firstNormalIdx);
         return { isSet: false, color: color, value: targetVal };
+    }
+}
+
+// YENİ: KATILAŞTIRILMIŞ (STRICT) İŞLEME ALGORİTMASI
+// Okeyleri yerinden oynatmadan ve esnetmeden sadece uçlara eklemeye izin verir
+function tryAttachTileStrict(per, tile, gameOkey) {
+    let isOkeyTile = Validator.isOkey(tile, gameOkey);
+    let eTile = Validator.getEffectiveTile(tile, gameOkey);
+
+    let normalTiles = per.filter(t => !Validator.isOkey(t, gameOkey));
+    if (normalTiles.length === 0) return null;
+
+    let isSet = true;
+    let firstVal = Validator.getEffectiveTile(normalTiles[0], gameOkey).value;
+    for (let t of normalTiles) {
+        if (Validator.getEffectiveTile(t, gameOkey).value !== firstVal) {
+            isSet = false;
+            break;
+        }
+    }
+
+    if (isSet) {
+        if (per.length >= 4) return null;
+        if (isOkeyTile) {
+            return [...per, tile];
+        } else {
+            if (eTile.value === firstVal) {
+                let presentColors = normalTiles.map(t => Validator.getEffectiveTile(t, gameOkey).color);
+                if (!presentColors.includes(eTile.color)) return [...per, tile];
+            }
+        }
+        return null;
+    } else {
+        if (per.length >= 13) return null;
+
+        let runColor = Validator.getEffectiveTile(normalTiles[0], gameOkey).color;
+        if (!isOkeyTile && eTile.color !== runColor) return null;
+
+        let firstNormalIdx = per.findIndex(t => !Validator.isOkey(t, gameOkey));
+        let firstNormalVal = Validator.getEffectiveTile(per[firstNormalIdx], gameOkey).value;
+
+        let leftMostVal = firstNormalVal - firstNormalIdx;
+        let rightMostVal = leftMostVal + per.length - 1;
+
+        if (isOkeyTile) {
+            if (rightMostVal < 13) return [...per, tile]; // Sağa ekle
+            if (leftMostVal > 1) return [tile, ...per]; // Sola ekle
+            return null;
+        } else {
+            if (eTile.value === rightMostVal + 1 && eTile.value <= 13) return [...per, tile];
+            if (eTile.value === leftMostVal - 1 && eTile.value >= 1) return [tile, ...per];
+        }
+        return null;
     }
 }
 
@@ -52,19 +114,35 @@ function isTilePlayable(tile, room) {
     if (Validator.isOkey(tile, gameOkey)) return true; 
 
     for (let per of room.ortayaAcilanTumPerler) {
-        if (per.length === 2) continue; // Çiftlere dokunulmaz
-        let testGrup = [...per, tile];
-        if (Validator.isGroupValid(testGrup, gameOkey)) return true;
+        if (per.length === 2) continue; 
         
+        // Önce Çalma İhtimalini Denetle
         let okeyIndex = per.findIndex(t => Validator.isOkey(t, gameOkey));
         if (okeyIndex !== -1) {
             let rep = getOkeyRepresentedTile(per, okeyIndex, gameOkey);
             let eNew = Validator.getEffectiveTile(tile, gameOkey);
-            if (rep && rep.isSet) { if (eNew.value === rep.value && !rep.presentColors.includes(eNew.color) && rep.presentColors.length === 3) return true; } 
-            else if (rep) { if (eNew.color === rep.color && eNew.value === rep.value) return true; }
+            if (rep && rep.isSet) {
+                if (eNew.value === rep.value && !rep.presentColors.includes(eNew.color) && rep.presentColors.length === 3) return true;
+            } else if (rep) {
+                if (eNew.color === rep.color && eNew.value === rep.value) return true;
+            }
         }
+
+        // Sonra Uçlara Sıkı Ekleme (Strict) Kontrolü Yap
+        if (tryAttachTileStrict(per, tile, gameOkey) !== null) return true;
     }
     return false;
+}
+
+// YANDAN ALINAN TAŞIN İŞLENDİKTEN SONRAKİ KONTROLÜ (DUPLICATE HATASI ÇÖZÜMÜ)
+function checkYandanAlinanTas(pInfo, socket) {
+    if (pInfo.turnState.yandanAlinanTas) {
+        if (!pInfo.el.find(t => t.id === pInfo.turnState.yandanAlinanTas.id)) {
+            pInfo.turnState.yandanAlinanTas = null;
+            pInfo.turnState.elAcmadanYandanAldi = false;
+            socket.emit('yandanIptalKaldir'); // İptal butonunu anında saklar
+        }
+    }
 }
 
 io.on('connection', (socket) => {
@@ -126,13 +204,14 @@ io.on('connection', (socket) => {
         }
     });
 
-    // YANDAN ÇEKME MANTIĞI DÜZELTİLDİ
     socket.on('yandanCek', () => {
         let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id); let solIdx = (index - 1 + 4) % 4; let yandakiTas = room.yerdekiTaslar[solIdx];
         if (index === room.siraKimde && !room.players[index].turnState.tasCektiMi && yandakiTas) {
-            room.players[index].el.push(yandakiTas); room.players[index].turnState.tasCektiMi = true;
-            room.players[index].turnState.yandanAlinanTas = yandakiTas; // Her koşulda takip et
-            socket.emit('yandanAldinZorunluAc'); // İptal butonunu her zaman göster
+            room.players[index].el.push(yandakiTas); 
+            room.players[index].turnState.tasCektiMi = true;
+            room.players[index].turnState.yandanAlinanTas = yandakiTas; 
+            if (!room.players[index].perAcmisMi && !room.players[index].ciftAcmisMi) { room.players[index].turnState.elAcmadanYandanAldi = true; }
+            socket.emit('yandanAldinZorunluAc');
             takeSnapshot(room, room.players[index]); socket.emit('tasCekildi', yandakiTas); room.yerdekiTaslar[solIdx] = null; io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); 
         }
     });
@@ -142,7 +221,7 @@ io.on('connection', (socket) => {
         if (index === room.siraKimde && pInfo.turnState.yandanAlinanTas) {
             let solIdx = (index - 1 + 4) % 4; let tas = pInfo.turnState.yandanAlinanTas; 
             pInfo.el = pInfo.el.filter(t => t.id !== tas.id); room.yerdekiTaslar[solIdx] = tas;
-            pInfo.turnState.tasCektiMi = false; pInfo.turnState.yandanAlinanTas = null; pInfo.turnState.snapshot = null; 
+            pInfo.turnState.tasCektiMi = false; pInfo.turnState.yandanAlinanTas = null; pInfo.turnState.elAcmadanYandanAldi = false; pInfo.turnState.snapshot = null; 
             socket.emit('yandanIptalEdildi', tas.id); io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar);
         }
     });
@@ -151,8 +230,6 @@ io.on('connection', (socket) => {
         let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id); let pInfo = room.players[index];
         if (index === room.siraKimde) {
             if (!pInfo.turnState.tasCektiMi) return socket.emit('hata', 'Taş çekmeden atamazsınız!');
-            
-            // Yandan alınan taş hala elde duruyorsa ceza!
             let yTas = pInfo.turnState.yandanAlinanTas;
             if (yTas && pInfo.el.find(t => t.id === yTas.id)) return socket.emit('hata', 'Yandan aldığınız taşı kullanmadınız, iptal edin veya işleyin!');
 
@@ -181,27 +258,36 @@ io.on('connection', (socket) => {
         if (index !== room.siraKimde) return socket.emit('hata', 'Sıra sizde değil!'); let pInfo = room.players[index];
         if (!pInfo.turnState.snapshot) return socket.emit('hata', 'Önce taş çekmelisiniz veya toplanacak hamle yok.');
         
-        pInfo.el = JSON.parse(JSON.stringify(pInfo.turnState.snapshot.el)); room.ortayaAcilanTumPerler = JSON.parse(JSON.stringify(pInfo.turnState.snapshot.perler)); pInfo.perAcmisMi = pInfo.turnState.snapshot.perAcmisMi; pInfo.ciftAcmisMi = pInfo.turnState.snapshot.ciftAcmisMi; pInfo.turnState.islenenPerler = {}; 
-        socket.emit('istakaGuncellendi', pInfo.el); io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler); socket.emit('bilgi', 'Masaya açtığın taşları geri topladın.');
+        pInfo.el = JSON.parse(JSON.stringify(pInfo.turnState.snapshot.el)); room.ortayaAcilanTumPerler = JSON.parse(JSON.stringify(pInfo.turnState.snapshot.perler)); 
+        pInfo.perAcmisMi = pInfo.turnState.snapshot.perAcmisMi; pInfo.ciftAcmisMi = pInfo.turnState.snapshot.ciftAcmisMi; 
+        pInfo.turnState.toplamSeriIsleme = pInfo.turnState.snapshot.toplamSeriIsleme || 0;
+        pInfo.turnState.islenenPerler = {}; 
+        
+        if (pInfo.turnState.yandanAlinanTas) socket.emit('yandanAldinZorunluAc');
+
+        socket.emit('geriToplandi', { el: pInfo.el, perler: room.ortayaAcilanTumPerler });
+        io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler);
     });
 
-    // ÇAPRAZ İŞLEME MANTIĞI EKLENDİ (Seri açan çift açabilir, çift açan seri açabilir)
     socket.on('seriAcmaTalebi', (gonderilenGruplar) => {
         let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id);
         if (index !== room.siraKimde) return; let pInfo = room.players[index];
         
+        if (pInfo.ciftAcmisMi && !pInfo.perAcmisMi) return socket.emit('hata', 'Çift açan oyuncu yeni seri açamaz, serilere sadece taş işleyebilir!');
+
         let isAlreadyOpened = pInfo.perAcmisMi || pInfo.ciftAcmisMi;
         let runsOnTable = room.ortayaAcilanTumPerler.some(p => p.length > 2);
         let isProcessing = isAlreadyOpened && runsOnTable;
 
-        if (pInfo.ciftAcmisMi && !runsOnTable) return socket.emit('hata', 'Masada seri açılmadığı için seri işleyemezsiniz!');
-
         let sonuc = Validator.calculate101Score(gonderilenGruplar, room.globalOyun.okey, isProcessing);
         if (sonuc.success || pInfo.perAcmisMi) {
-            let ilkKezAciliyor = !isAlreadyOpened; pInfo.perAcmisMi = true; 
+            let ilkKezAciliyor = !isAlreadyOpened; pInfo.perAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
             if (ilkKezAciliyor) io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, seri el açtı.`, type: 'system' });
+
             let idler = []; gonderilenGruplar.forEach(grup => { room.ortayaAcilanTumPerler.push(Validator.sortGroup(grup, room.globalOyun.okey)); grup.forEach(t => idler.push(t.id)); });
             pInfo.el = pInfo.el.filter(t => !idler.includes(t.id));
+            
+            checkYandanAlinanTas(pInfo, socket);
             socket.emit('perAcildiOnay', idler); io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler); 
             if (pInfo.el.length === 0) oyunuBitir(room, index, "El Bitti");
         } else { socket.emit('hata', sonuc.message); }
@@ -219,10 +305,13 @@ io.on('connection', (socket) => {
 
         let sonuc = Validator.calculatePairs(gonderilenGruplar, room.globalOyun.okey, isProcessing);
         if (sonuc.success) {
-            let ilkKezAciliyor = !isAlreadyOpened; pInfo.ciftAcmisMi = true; 
+            let ilkKezAciliyor = !isAlreadyOpened; pInfo.ciftAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
             if (ilkKezAciliyor) io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, çift el açtı.`, type: 'system' });
+            
             let idler = []; gonderilenGruplar.forEach(grup => { room.ortayaAcilanTumPerler.push(Validator.sortGroup(grup, room.globalOyun.okey)); grup.forEach(t => idler.push(t.id)); });
             pInfo.el = pInfo.el.filter(t => !idler.includes(t.id));
+            
+            checkYandanAlinanTas(pInfo, socket);
             socket.emit('perAcildiOnay', idler); io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler); 
             if (pInfo.el.length === 0) oyunuBitir(room, index, "El Bitti");
         } else { socket.emit('hata', sonuc.message); }
@@ -233,16 +322,22 @@ io.on('connection', (socket) => {
         if (index !== room.siraKimde) return; let pInfo = room.players[index];
         if (!pInfo.perAcmisMi && !pInfo.ciftAcmisMi) return socket.emit('hata', 'Önce elinizi açın!');
         
-        let islenenSayi = pInfo.turnState.islenenPerler[perIndex] || 0; if (islenenSayi >= 2) return socket.emit('hata', 'Bu pere bu elde maks 2 taş işleyebilirsiniz!');
-        let islenecekTas = pInfo.el.find(t => t.id === parseInt(tasId)); let hedefPer = room.ortayaAcilanTumPerler[perIndex];
+        let hedefPer = room.ortayaAcilanTumPerler[perIndex];
+        let islenecekTas = pInfo.el.find(t => t.id === parseInt(tasId)); 
         if (!islenecekTas || !hedefPer) return;
 
-        // ÇİFTLERE TEK TAŞ İŞLENEMEZ!
         if (hedefPer.length === 2) return socket.emit('hata', "Çiftlere tek taş işlenemez! Çift işlemek için 'Çift Aç' kullanın.");
 
+        if (pInfo.ciftAcmisMi && !pInfo.perAcmisMi && hedefPer.length > 2) {
+            if ((pInfo.turnState.toplamSeriIsleme || 0) >= 2) return socket.emit('hata', 'Çift açanlar bir turda serilere en fazla 2 taş işleyebilir!');
+        }
+
+        let islenenSayi = pInfo.turnState.islenenPerler[perIndex] || 0; if (islenenSayi >= 2) return socket.emit('hata', 'Bu pere bu elde maks 2 taş işleyebilirsiniz!');
+        
         let islemBasarili = false, okeyKazanildi = false, kazanilanOkeyTas = null;
         let gameOkey = room.globalOyun.okey;
         
+        // MÜKEMMEL OKEY ÇALMA İŞLEMİ (Yer Değiştirme - Splice ile Kilitlendi)
         let okeyIndex = hedefPer.findIndex(t => Validator.isOkey(t, gameOkey));
         if (okeyIndex !== -1) {
             let rep = getOkeyRepresentedTile(hedefPer, okeyIndex, gameOkey);
@@ -258,21 +353,33 @@ io.on('connection', (socket) => {
             }
 
             if (canSteal) {
-                let testGrup = [...hedefPer]; let okeyTas = testGrup.splice(okeyIndex, 1)[0]; testGrup.push(islenecekTas); 
-                islemBasarili = true; okeyKazanildi = true; kazanilanOkeyTas = okeyTas; room.ortayaAcilanTumPerler[perIndex] = Validator.sortGroup(testGrup, gameOkey);
+                let testGrup = [...hedefPer]; 
+                let okeyTas = testGrup.splice(okeyIndex, 1, islenecekTas)[0]; // Okeyin yerine tam oturt!
+                islemBasarili = true; okeyKazanildi = true; kazanilanOkeyTas = okeyTas; 
+                room.ortayaAcilanTumPerler[perIndex] = testGrup;
             }
         }
 
+        // Çalma değilse, uçlara (Strict) eklemeye çalış
         if (!islemBasarili) {
-            let testGrup = [...hedefPer, islenecekTas];
-            if (Validator.isGroupValid(testGrup, gameOkey)) { islemBasarili = true; room.ortayaAcilanTumPerler[perIndex] = Validator.sortGroup(testGrup, gameOkey); }
+            let newGrup = tryAttachTileStrict(hedefPer, islenecekTas, gameOkey);
+            if (newGrup !== null) {
+                islemBasarili = true;
+                room.ortayaAcilanTumPerler[perIndex] = newGrup;
+            }
         }
 
         if (islemBasarili) {
             pInfo.el = pInfo.el.filter(t => t.id !== islenecekTas.id); pInfo.turnState.islenenPerler[perIndex] = islenenSayi + 1; 
+            
+            if (pInfo.ciftAcmisMi && !pInfo.perAcmisMi && hedefPer.length > 2) {
+                pInfo.turnState.toplamSeriIsleme = (pInfo.turnState.toplamSeriIsleme || 0) + 1;
+            }
+
+            checkYandanAlinanTas(pInfo, socket);
             socket.emit('islemeBasarili', islenecekTas.id); if (okeyKazanildi) { pInfo.el.push(kazanilanOkeyTas); socket.emit('okeyKazanildi', kazanilanOkeyTas); } io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler);
             if (pInfo.el.length === 0) oyunuBitir(room, index, "İşleyerek Bitti");
-        } else { socket.emit('hata', 'Taş bu gruba işlenemez!'); } // ESKİ UYARIYA DÖNÜLDÜ
+        } else { socket.emit('hata', 'Taş bu gruba işlenemez (Okeyin yerine tam uymuyor veya seri dışı)!'); }
     });
 
     socket.on('disconnect', () => { let room = getRoomBySocket(socket.id); if (room) { let player = room.players.find(p => p.socketId === socket.id); if (player) player.connected = false; } });
@@ -295,7 +402,9 @@ function forceAutoPlay(room, playerIndex) {
         let randIdx = Math.floor(Math.random() * pInfo.el.length); let atilanTas = pInfo.el.splice(randIdx, 1)[0];
         
         let isOkeyTile = Validator.isOkey(atilanTas, room.globalOyun.okey); let isPlayable = room.ortayaAcilanTumPerler.length > 0 && isTilePlayable(atilanTas, room);
-        if (isOkeyTile || isPlayable) { pInfo.cezalar += 101; let sebepMsj = isOkeyTile ? 'yere Okey' : 'işlek taş'; io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sebepMsj} attı ve 101 ceza yedi!`, type: 'system' }); io.to(room.id).emit('bilgi', `${pInfo.isim}, ${sebepMsj} attığı için ceza yedi.`); }
+        if (isOkeyTile || isPlayable) {
+            pInfo.cezalar += 101; let sebepMsj = isOkeyTile ? 'yere Okey' : 'işlek taş'; io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sebepMsj} attı ve 101 ceza yedi!`, type: 'system' }); io.to(room.id).emit('bilgi', `${pInfo.isim}, ${sebepMsj} attığı için ceza yedi.`);
+        }
         
         room.yerdekiTaslar[playerIndex] = atilanTas; io.to(pInfo.socketId).emit('istakaGuncellendi', pInfo.el); io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim} süresi dolduğu için otomatik oynadı.`, type: 'system' });
         if (room.siraKimde === 0 && room.oyunIlkTur) room.oyunIlkTur = false;
@@ -307,7 +416,7 @@ function forceAutoPlay(room, playerIndex) {
 function sirayiGecir(room, yeniSiraIndex) {
     if (room.turnTimer) clearTimeout(room.turnTimer); let turnDuration = 60000; room.turnEndTime = Date.now() + turnDuration;
     room.players.forEach((oyuncu, idx) => {
-        let ilkElBasiMi = (room.oyunIlkTur && idx === 0); oyuncu.turnState = { tasCektiMi: ilkElBasiMi, elAcmadanYandanAldi: false, yandanAlinanTas: null, islenenPerler: {} };
+        let ilkElBasiMi = (room.oyunIlkTur && idx === 0); oyuncu.turnState = { tasCektiMi: ilkElBasiMi, elAcmadanYandanAldi: false, yandanAlinanTas: null, islenenPerler: {}, toplamSeriIsleme: 0 };
         if (ilkElBasiMi) takeSnapshot(room, oyuncu);
         if (oyuncu.connected) {
             if (idx === yeniSiraIndex) { let solIdx = (yeniSiraIndex - 1 + 4) % 4; io.to(oyuncu.socketId).emit('siraSende', { soldanGelenTas: room.yerdekiTaslar[solIdx], ilkTurMu: ilkElBasiMi, turnEndTime: room.turnEndTime }); } else { io.to(oyuncu.socketId).emit('siraBaskasinda', { idx: yeniSiraIndex, turnEndTime: room.turnEndTime }); }
@@ -322,11 +431,17 @@ function oyunuBitir(room, bitirenIndex, sebep) {
         let sonuc = { isim: oyuncu.isim, puan: 0, durum: "" }; let islekCezasi = oyuncu.cezalar || 0;
         if (i === bitirenIndex) { sonuc.puan = -101 + islekCezasi; sonuc.durum = "Bitirdi"; } 
         else if (!oyuncu.perAcmisMi && !oyuncu.ciftAcmisMi) { sonuc.puan = 202 + islekCezasi; sonuc.durum = "Açamadı"; } 
-        else { let ceza = 0; oyuncu.el.forEach(t => ceza += t.value); sonuc.puan = ceza + islekCezasi; sonuc.durum = "Açtı"; }
+        else { 
+            let ceza = 0; oyuncu.el.forEach(t => ceza += t.value); 
+            if (oyuncu.ciftAcmisMi && !oyuncu.perAcmisMi) {
+                ceza *= 2; sonuc.durum = "Çift Açtı";
+            } else { sonuc.durum = "Seri Açtı"; }
+            sonuc.puan = ceza + islekCezasi; 
+        }
         return sonuc;
     });
 
-    let kazananIndex = bitirenIndex;
+    // let kazananIndex = bitirenIndex;
     if (bitirenIndex === -1) {
         let minScore = Math.min(...skorTablosu.map(s => s.puan)); let kazananlar = skorTablosu.filter(s => s.puan === minScore);
         kazananIndex = (minScore === 202 && kazananlar.length === 4) ? -1 : skorTablosu.findIndex(s => s.puan === minScore);

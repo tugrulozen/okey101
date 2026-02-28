@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Area51 Okey</title>
     
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+    <script>MobileDragDrop.polyfill({dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride});</script>
+
     <style>
         body { background-color: #050505; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; touch-action: pan-x pan-y;}
         
@@ -59,7 +63,6 @@
         #etiket-left { top: 50%; left: 20px; transform: translateY(-50%); }
         #etiket-right { top: 50%; right: 20px; transform: translateY(-50%); }
 
-        /* RAKİP ÇÖPLERİ - KARŞININ ÇÖPÜ DE SOLA HİZALANDI */
         .rakip-cop { position: absolute; width: 50px; height: 72px; background: rgba(0,0,0,0.3); border: 1px dashed rgba(255,255,255,0.2); border-radius: 6px; display: flex; justify-content: center; align-items: center;}
         #alan-cop-top { top: 20px; left: 160px; } 
         #alan-cop-right { top: 15%; right: 40px; }
@@ -90,7 +93,6 @@
         .hedef-belirgin { animation: pulseRed 1s infinite; border-color: #e74c3c !important; }
         @keyframes pulseRed { 0% {box-shadow: 0 0 10px #e74c3c;} 50% {box-shadow: 0 0 25px #e74c3c;} 100% {box-shadow: 0 0 10px #e74c3c;} }
 
-        /* GÖRÜNMEZ ISTAKA SLOTLARI */
         #benim-istakam { 
             background: linear-gradient(to bottom, #2b2b2b 0%, #1a1a1a 100%); border: 2px solid #000; border-top: 4px solid #444; border-radius: 8px; 
             padding: 12px; box-shadow: 0 15px 30px rgba(0,0,0,0.9), inset 0 5px 15px rgba(0,0,0,0.8);
@@ -108,7 +110,7 @@
             padding-top: 5px; box-sizing: border-box; position: relative; touch-action: none;
         }
         .tas .deger { font-size: 26px; line-height: 1; }
-        .tas .yildiz { position: absolute; bottom: 12px; font-size: 14px; line-height: 1;} /* YILDIZ NİZAMİ ORTALANDI */
+        .tas .yildiz { position: absolute; bottom: 4px; font-size: 14px; line-height: 1;}
         
         .tas.dragging { opacity: 0.4; }
         .gecerli-per { box-shadow: 0 0 12px #d4af37, inset 0 0 4px #d4af37 !important; border-color: #d4af37 !important; transform: translateY(-4px); }
@@ -117,6 +119,7 @@
         .kirmizi { color: #d32f2f; } .siyah { color: #212121; } .mavi { color: #1976d2; } .sari { color: #f57f17; }
         .sahte { color: #8e44ad; }
         .sahte .deger { font-size: 30px; margin-top: 5px;}
+
         .kapali-tas { background: linear-gradient(to bottom, #fdfbf7, #e9e4d0) !important; border: 1px solid #c8c0b0 !important; border-bottom: 3px solid #b0a590 !important; }
         .kapali-tas .deger, .kapali-tas .yildiz { display: none !important; }
 
@@ -204,7 +207,7 @@
             <div id="alt-alan">
                 <div class="sol-panel">
                     <div class="bilgi-kutusu"><div>Seri Puanı</div><span id="secili-seri-puan">0</span></div>
-                    <div class="bilgi-kutusu"><div>Çiftler</div><span id="secili-cift-sayisi">0</span><span style="color:#666; font-size:12px;">/5</span></div>
+                    <div class="bilgi-kutusu"><div>Çiftler</div><span id="secili-cift-sayisi">0</span></div>
                     <div class="aksiyon-butonlari">
                         <button class="btn-aksiyon" id="btn-seri-ac" disabled>Seri Aç</button>
                         <button class="btn-aksiyon" id="btn-cift-ac" disabled>Çift Aç</button>
@@ -233,7 +236,8 @@
                     </div>
                     <div class="etkilesim-alani">
                         <div class="etkilesim-baslik" style="color: #d4af37;"><span id="kalan-tas-sayisi"></span></div>
-                        <div class="oyun-slotu kapali-tas" id="deste-tas" draggable="false"></div> </div>
+                        <div class="oyun-slotu kapali-tas" id="deste-tas" draggable="false" style="cursor: pointer;"></div>
+                    </div>
                     <div class="etkilesim-alani">
                         <div class="etkilesim-baslik" id="isim-bottom" style="color: white; border: 1px solid transparent; padding: 4px 15px; border-radius: 20px; transition: 0.3s;">Sen</div>
                         <div class="oyun-slotu" id="cop-bottom"></div>
@@ -279,6 +283,7 @@
         let oyunOkeyi = null; let hedefDesteSlot = null; let benimIndex = 0; let isimlerListesi = [];
         let gecerliAcmayaHazirGruplar = []; let ciftGruplari = []; let seciliTasId = null;
         let turnTimerInterval;
+        let hamleYapildi = false; // GERİ TOPLA KONTROLÜ
 
         function showToast(message, type="info") {
             const container = document.getElementById('toast-container');
@@ -286,7 +291,6 @@
             container.appendChild(toast); setTimeout(() => { if(toast.parentElement) toast.remove(); }, 4000);
         }
 
-        // ÇOK DAHA KALIN "GÜM" SESİ
         function playTurnSound() {
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -329,9 +333,8 @@
             }, 1000);
         }
 
-        // DRAG&DROP GÜVENLİK KİLİDİ
         document.addEventListener('dragend', () => { 
-            document.querySelectorAll('.tas').forEach(t => t.classList.remove('dragging')); 
+            document.querySelectorAll('.tas').forEach(t => t.classList.remove('dragging'));
             draggedTas = null; 
         });
 
@@ -352,9 +355,14 @@
             if(isim) { localStorage.setItem('okey_playerName', isim); socket.emit('kimlikBildir', { playerId: myPlayerId, isim: isim }); document.getElementById('giris-ekrani').style.display = 'none'; }
         });
 
-        document.getElementById('btn-masadan-ayril').addEventListener('click', () => { socket.emit('masadanAyril'); document.getElementById('oyun-wrapper').style.display = 'none'; });
+        document.getElementById('btn-masadan-ayril').addEventListener('click', () => {
+            socket.emit('masadanAyril'); document.getElementById('oyun-wrapper').style.display = 'none';
+        });
 
-        function gonderChat() { let input = document.getElementById('chat-input'); let val = input.value.trim(); if(val) { socket.emit('chatMesaji', val); input.value = ''; } }
+        function gonderChat() {
+            let input = document.getElementById('chat-input'); let val = input.value.trim();
+            if(val) { socket.emit('chatMesaji', val); input.value = ''; }
+        }
         document.getElementById('btn-chat-gonder').addEventListener('click', gonderChat); document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key==='Enter') gonderChat(); });
 
         socket.on('yeniChatMesaji', (data) => {
@@ -399,6 +407,11 @@
         function isOkey(tile) { return tile && oyunOkeyi && tile.color === oyunOkeyi.color && tile.value === oyunOkeyi.value && tile.color !== 'sahte' && !tile.isSahte; }
         function getEff(tile) { return tile.color === 'sahte' && oyunOkeyi ? { id: tile.id, color: oyunOkeyi.color, value: oyunOkeyi.value, isSahte: true } : tile; }
 
+        function isPairValid(group) {
+            if (group.length !== 2) return false; let t1 = getEff(group[0]), t2 = getEff(group[1]);
+            let oc = (isOkey(t1) ? 1 : 0) + (isOkey(t2) ? 1 : 0); if (oc > 0) return true; return t1.color === t2.color && t1.value === t2.value;
+        }
+
         function isSetValid(group) {
             if (group.length < 3 || group.length > 4) return false;
             let n = group.map(t => getEff(t)).filter(t => !isOkey(t)); if (n.length === 0) return true;
@@ -406,16 +419,11 @@
         }
 
         function isRunValid(group) {
-            if (group.length < 3 || group.length > 13) return false;
+            if (group.length < 3 || group.length > 4) return false;
             let n = group.map(t => getEff(t)).filter(t => !isOkey(t)); if (n.length === 0) return true;
             if (n.some(t => t.color !== n[0].color)) return false;
             let vals = n.map(t => t.value).sort((a,b)=>a-b); let okeyC = group.length - n.length;
             let req = 0; for(let i=0; i<vals.length-1; i++){ let g = vals[i+1]-vals[i]-1; if(g<0) return false; req+=g; } return req <= okeyC;
-        }
-
-        function isPairValid(group) {
-            if (group.length !== 2) return false; let t1 = getEff(group[0]), t2 = getEff(group[1]);
-            let oc = (isOkey(t1) ? 1 : 0) + (isOkey(t2) ? 1 : 0); if (oc > 0) return true; return t1.color === t2.color && t1.value === t2.value;
         }
 
         function getGroupScore(group) {
@@ -427,29 +435,56 @@
             while (okeysCount > 0) { if (expectedVal > 13) { startVal--; resultVals.unshift(startVal); } else { resultVals.push(expectedVal); expectedVal++; } okeysCount--; }
             return resultVals.reduce((a, b) => a + b, 0);
         }
+        
+        function isGroupValid(group) { return isSetValid(group) || isRunValid(group); }
 
+        // 5'Lİ PERLERDE EN KÜÇÜK TAŞI ATIP SKORU MAKSİMİZE EDEN ALGORİTMA
         function splitGroup(groupData) {
             let g = groupData.t; let idxs = groupData.idxl; let len = g.length;
-            if (len <= 4 || isPairValid(g) || isSetValid(g)) return [groupData]; 
-            if (len === 5) return [groupData]; 
-            if (len === 6) return [{t: g.slice(0,3), idxl: idxs.slice(0,3)}, {t: g.slice(3,6), idxl: idxs.slice(3,6)}];
-            if (len === 7) return [{t: g.slice(0,4), idxl: idxs.slice(0,4)}, {t: g.slice(4,7), idxl: idxs.slice(4,7)}];
-            if (len >= 8) {
-                let chunks = []; let offset = 0; let remain = len;
-                while(remain > 5) { chunks.push({t: g.slice(offset, offset+4), idxl: idxs.slice(offset, offset+4)}); offset += 4; remain -= 4; }
-                if(remain === 5) chunks.push({t: g.slice(offset, offset+5), idxl: idxs.slice(offset, offset+5)});
-                else if(remain > 0) chunks.push({t: g.slice(offset, offset+remain), idxl: idxs.slice(offset, offset+remain)});
+            
+            let isAllPairs = true;
+            if (len % 2 === 0 && len > 0) {
+                for (let i = 0; i < len; i += 2) { if (!isPairValid([g[i], g[i+1]])) { isAllPairs = false; break; } }
+            } else { isAllPairs = false; }
+
+            if (isAllPairs) {
+                let chunks = [];
+                for (let i = 0; i < len; i += 2) chunks.push({ t: [g[i], g[i+1]], idxl: [idxs[i], idxs[i+1]] });
                 return chunks;
             }
-            return [groupData];
+
+            if (len <= 4) return [groupData];
+
+            let chunks = [];
+            let offset = 0;
+            while (len - offset >= 3) {
+                let remain = len - offset;
+                if (remain === 5) {
+                    let c1 = g.slice(offset, offset+4); let c2 = g.slice(offset+1, offset+5);
+                    let score1 = isGroupValid(c1) ? getGroupScore(c1) : 0;
+                    let score2 = isGroupValid(c2) ? getGroupScore(c2) : 0;
+                    if (score2 > score1) { chunks.push({t: c2, idxl: idxs.slice(offset+1, offset+5)}); } 
+                    else { chunks.push({t: c1, idxl: idxs.slice(offset, offset+4)}); }
+                    offset += 5; 
+                } else if (remain >= 4 && remain !== 6) {
+                    chunks.push({t: g.slice(offset, offset+4), idxl: idxs.slice(offset, offset+4)});
+                    offset += 4;
+                } else { 
+                    chunks.push({t: g.slice(offset, offset+3), idxl: idxs.slice(offset, offset+3)});
+                    offset += 3;
+                }
+            }
+            return chunks.length > 0 ? chunks : [groupData];
         }
 
         function otomatikPuanHesapla() {
             document.querySelectorAll('.tas').forEach(t => t.classList.remove('gecerli-per')); gecerliAcmayaHazirGruplar = []; ciftGruplari = [];
             let gruplar = []; let guncel = []; let idxHarita = [];
             
-            // Tüm ıstaka tek parça (Köşelerde kopma yapmaz)
-            for (let i = 0; i < 30; i++) { if (benimElim[i]) { guncel.push(benimElim[i]); idxHarita.push(i); } else { if (guncel.length > 0) { gruplar.push({t: guncel, idxl: idxHarita}); guncel = []; idxHarita = []; } } }
+            for (let i = 0; i <= 14; i++) { if (benimElim[i]) { guncel.push(benimElim[i]); idxHarita.push(i); } else { if (guncel.length > 0) { gruplar.push({t: guncel, idxl: idxHarita}); guncel = []; idxHarita = []; } } }
+            if (guncel.length > 0) { gruplar.push({t: guncel, idxl: idxHarita}); guncel = []; idxHarita = []; }
+            
+            for (let i = 15; i <= 29; i++) { if (benimElim[i]) { guncel.push(benimElim[i]); idxHarita.push(i); } else { if (guncel.length > 0) { gruplar.push({t: guncel, idxl: idxHarita}); guncel = []; idxHarita = []; } } }
             if (guncel.length > 0) gruplar.push({t: guncel, idxl: idxHarita});
 
             let totalSeriPuan = 0;
@@ -464,7 +499,7 @@
             ciftSpan.style.color = ciftGruplari.length >= 5 ? "#2ecc71" : "#d4af37";
             
             btnSeriAc.disabled = gecerliAcmayaHazirGruplar.length === 0 || !benimSira;
-            btnCiftAc.disabled = ciftGruplari.length < 5 || !benimSira;
+            btnCiftAc.disabled = ciftGruplari.length === 0 || !benimSira;
             
             if (seciliTasId !== null && benimSira) copBottom.classList.add('hedef-belirgin'); else copBottom.classList.remove('hedef-belirgin');
             return { seri: gecerliAcmayaHazirGruplar, cift: ciftGruplari };
@@ -486,16 +521,15 @@
             return div;
         }
 
-        // AKILLI KAYDIRMA ALGORİTMASI (En yakın boşluğa kaydırır)
         function moveTileInRack(fromIdx, toIdx) {
             if (fromIdx === toIdx) return;
             let tile = benimElim[fromIdx]; benimElim[fromIdx] = null;
-            
             if (benimElim[toIdx] === null) { benimElim[toIdx] = tile; } 
             else {
+                let rowStart = toIdx < 15 ? 0 : 15; let rowEnd = toIdx < 15 ? 14 : 29;
                 let leftNull = -1, rightNull = -1;
-                for(let k = toIdx - 1; k >= 0; k--) if(!benimElim[k]) { leftNull = k; break; }
-                for(let k = toIdx + 1; k <= 29; k++) if(!benimElim[k]) { rightNull = k; break; }
+                for(let k = toIdx - 1; k >= rowStart; k--) if(!benimElim[k]) { leftNull = k; break; }
+                for(let k = toIdx + 1; k <= rowEnd; k++) if(!benimElim[k]) { rightNull = k; break; }
                 
                 let distL = leftNull !== -1 ? toIdx - leftNull : Infinity;
                 let distR = rightNull !== -1 ? rightNull - toIdx : Infinity;
@@ -532,6 +566,67 @@
         }
 
         socket.on('istakaGuncellendi', (yeniEl) => { benimElim = Array(30).fill(null); yeniEl.forEach((tas, i) => benimElim[i] = tas); istakayiCiz(); });
+
+        // ANTI-PER KARIŞTIRICI: Artan taşları gereksiz yere per veya çift oluşturmayacak şekilde dizer
+        function safeArrangeLeftovers(tiles, mode) {
+            let res = []; let pool = [...tiles];
+            while(pool.length > 0) {
+                let bestIdx = 0;
+                for(let i=0; i<pool.length; i++) {
+                    if (res.length === 0) { bestIdx = i; break; }
+                    let last = res[res.length-1]; let cand = pool[i];
+                    let eLast = getEff(last); let eCand = getEff(cand);
+                    let isPair = (eLast.color === eCand.color && eLast.value === eCand.value);
+                    let isSet = (eLast.value === eCand.value);
+                    let isRun = (eLast.color === eCand.color && Math.abs(eLast.value - eCand.value) <= 1);
+                    if (mode === 'seri' && !isPair) { bestIdx = i; break; }
+                    if (mode === 'cift' && !isSet && !isRun) { bestIdx = i; break; }
+                }
+                res.push(pool.splice(bestIdx, 1)[0]);
+            }
+            return res;
+        }
+
+        function placeTilesSmartly(groups, leftovers, mode) {
+            let newRack = Array(30).fill(null);
+            let currIdx = 0; let unplaced = [];
+
+            function place(t) {
+                if (currIdx < 30) newRack[currIdx++] = t;
+                else unplaced.push(t);
+            }
+
+            for (let g of groups) {
+                let gArr = Array.isArray(g) ? g : g.t; 
+                if (currIdx > 0 && currIdx !== 15) currIdx++; // Gruplar arası 1 boşluk
+                if (currIdx < 15 && currIdx + gArr.length > 15) currIdx = 15; // Sığmıyorsa alt satıra geç
+                for (let t of gArr) place(t);
+            }
+
+            if (leftovers.length > 0 && currIdx > 0 && currIdx !== 15) currIdx++;
+
+            for (let t of leftovers) {
+                if (currIdx < 30 && currIdx !== 15 && currIdx !== 0) {
+                    if (mode === 'seri' && newRack[currIdx - 1]) {
+                        if (isPairValid([newRack[currIdx - 1], t])) {
+                            if (currIdx < 29 && currIdx !== 14) currIdx++; // Çift engelle
+                        }
+                    } else if (mode === 'cift' && currIdx % 15 >= 2 && newRack[currIdx - 1] && newRack[currIdx - 2]) {
+                        if (isGroupValid([newRack[currIdx - 2], newRack[currIdx - 1], t])) {
+                            if (currIdx < 29 && currIdx !== 14) currIdx++; // Seri engelle
+                        }
+                    }
+                }
+                place(t);
+            }
+
+            // HİÇBİR TAŞ KAYBOLMAZ - Sımsıkı paketle
+            for (let t of unplaced) {
+                let emptyIdx = newRack.indexOf(null);
+                if (emptyIdx !== -1) newRack[emptyIdx] = t;
+            }
+            return newRack;
+        }
 
         document.getElementById('btn-seri-diz').addEventListener('click', () => {
             seciliTasId = null; let compact = benimElim.filter(t => t !== null); let okeys = compact.filter(t => isOkey(t)); let normals = compact.filter(t => !isOkey(t));
@@ -589,21 +684,28 @@
                     }
                 }
             }
-            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); sonKalanlar.sort((a,b) => getEff(a).color.localeCompare(getEff(b).color) || getEff(a).value - getEff(b).value); let butunKalanlar = [...sonKalanlar, ...okeys]; 
-            benimElim = Array(30).fill(null); let index = 0; gruplar.forEach(g => { g.forEach(t => { if(index < 30) benimElim[index++] = t; }); if(index < 30) index++; }); butunKalanlar.forEach(t => { while(index < 30 && benimElim[index] !== null) index++; if(index < 30) benimElim[index++] = t; }); istakayiCiz();
+            
+            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); 
+            let butunKalanlar = safeArrangeLeftovers([...sonKalanlar, ...okeys], 'seri'); 
+            
+            benimElim = placeTilesSmartly(gruplar, butunKalanlar, 'seri');
+            istakayiCiz();
         });
 
         document.getElementById('btn-cift-diz').addEventListener('click', () => {
             seciliTasId = null; let compact = benimElim.filter(t => t !== null); let okeys = compact.filter(t => isOkey(t)); let normals = compact.filter(t => !isOkey(t)); let ciftler = []; let used = new Set(); let ciftHaritasi = {};
             normals.forEach(t => { let e = getEff(t); let key = e.color + '-' + e.value; if(!ciftHaritasi[key]) ciftHaritasi[key] = []; ciftHaritasi[key].push(t); });
-            for(let key in ciftHaritasi) { if(ciftHaritasi[key].length >= 2) { ciftler.push([ciftHaritasi[key][0], ciftHaritasi[key][1]]); used.add(ciftHaritasi[key][0].id); used.add(ciftHaritasi[key][1].id); } }
+            for(let key in ciftHaritasi) { while(ciftHaritasi[key].length >= 2) { let t1 = ciftHaritasi[key].shift(); let t2 = ciftHaritasi[key].shift(); ciftler.push([t1, t2]); used.add(t1.id); used.add(t2.id); } }
             let kalanlar = normals.filter(t => !used.has(t.id)).sort((a,b) => getEff(b).value - getEff(a).value);
             for(let i=0; i<kalanlar.length; i++) { if(okeys.length > 0) { let okeyTas = okeys.pop(); ciftler.push([kalanlar[i], okeyTas]); used.add(kalanlar[i].id); } }
-            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); sonKalanlar.sort((a,b) => getEff(a).value - getEff(b).value || getEff(a).color.localeCompare(getEff(b).color)); let butunKalanlar = [...sonKalanlar, ...okeys];
-            benimElim = Array(30).fill(null); let index = 0; ciftler.forEach(g => { g.forEach(t => { if(index < 30) benimElim[index++] = t; }); if(index < 30) index++; }); butunKalanlar.forEach(t => { while(index < 30 && benimElim[index] !== null) index++; if(index < 30) benimElim[index++] = t; }); istakayiCiz();
+            
+            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); 
+            let butunKalanlar = safeArrangeLeftovers([...sonKalanlar, ...okeys], 'cift');
+            
+            benimElim = placeTilesSmartly(ciftler, butunKalanlar, 'cift');
+            istakayiCiz();
         });
 
-        // TIKLAMA İLE İŞLEMLER
         desteTasDiv.addEventListener('click', () => { if(benimSira && !desteTasDiv.disabled) { hedefDesteSlot = null; socket.emit('ortadanCek'); }});
         desteTasDiv.ondragstart = (e) => { if(!benimSira) { e.preventDefault(); return; } e.dataTransfer.setData("type", "deckTile"); };
         
@@ -612,11 +714,10 @@
         copBottom.ondragleave = (e) => copBottom.classList.remove('drag-over');
         copBottom.ondrop = (e) => { e.preventDefault(); copBottom.classList.remove('drag-over'); if (e.dataTransfer.getData("type") === "rackTile" && draggedTas && benimSira) { socket.emit('tasAt', { id: parseInt(draggedTas.dataset.id), color: draggedTas.dataset.color, value: parseInt(draggedTas.dataset.value) }); draggedTas = null; seciliTasId = null; } };
 
-        // SOL ÇÖP TIKLAMA HİÇBİR ZAMAN TAŞ SEÇMEZ, SADECE ÇEKER
         document.getElementById('cop-left').addEventListener('click', (e) => { e.stopPropagation(); if (benimSira && document.getElementById('cop-left').children.length > 0) { seciliTasId = null; istakayiCiz(); socket.emit('yandanCek'); } });
 
         btnSeriAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.seri.length > 0) { socket.emit('seriAcmaTalebi', res.seri); seciliTasId = null; } else showToast('Geçerli bir seri bulunamadı.', 'error'); });
-        btnCiftAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.cift.length >= 5) { socket.emit('ciftAcmaTalebi', res.cift); seciliTasId = null; } else showToast('Açmak için en az 5 çift gerekir.', 'error'); });
+        btnCiftAc.addEventListener('click', () => { let res = otomatikPuanHesapla(); if(res.cift.length > 0) { socket.emit('ciftAcmaTalebi', res.cift); seciliTasId = null; } else showToast('Açılacak veya işlenecek çift bulunamadı.', 'error'); });
         btnYandanIptal.addEventListener('click', () => socket.emit('yandanAlmaIptal'));
         btnGeriTopla.addEventListener('click', () => socket.emit('geriToplaTalebi'));
 
@@ -646,7 +747,7 @@
                 perDiv.addEventListener('click', () => { if (seciliTasId !== null && benimSira) { socket.emit('yereIsleTalebi', { tasId: seciliTasId, perIndex: index }); seciliTasId = null; } });
                 perDiv.ondragover = (e) => { e.preventDefault(); perDiv.classList.add('drag-over'); }; perDiv.ondragleave = (e) => perDiv.classList.remove('drag-over');
                 perDiv.ondrop = (e) => { e.preventDefault(); perDiv.classList.remove('drag-over'); if (e.dataTransfer.getData("type") === "rackTile" && draggedTas && benimSira) socket.emit('yereIsleTalebi', { tasId: draggedTas.dataset.id, perIndex: index }); };
-                let isPair = isPairValid(per);
+                let isPair = per.length === 2;
                 if (isPair) ciftlerDiv.appendChild(perDiv); else serilerDiv.appendChild(perDiv);
             });
         }
@@ -663,6 +764,7 @@
 
         socket.on('siraSende', (data) => {
             benimSira = true; btnYandanIptal.style.display = "none"; playTurnSound(); siraParlamasiGuncelle(benimIndex); startClientTimer(data.turnEndTime);
+            hamleYapildi = false; btnGeriTopla.disabled = true; // Geri Topla Sıfırla
             if (data.ilkTurMu) { durumCubugu.innerText = "OYUN BAŞLADI: Sağ tarafa bir taş at."; durumCubugu.style.color = "#f39c12"; desteTasDiv.draggable = false; desteTasDiv.disabled = true;} 
             else { durumCubugu.innerText = "SIRA SENDE! Bankaya Dokun veya Soldan Al."; durumCubugu.style.color = "#2ecc71"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; if (data.soldanGelenTas) document.getElementById('cop-left').classList.add('yandan-alinabilir'); }
             otomatikPuanHesapla(); 
@@ -671,7 +773,8 @@
         socket.on('siraBaskasinda', (data) => {
             benimSira = false; durumCubugu.innerText = `Sıra ${isimlerListesi[data.idx]}'de...`; durumCubugu.style.color = "#aaa";
             siraParlamasiGuncelle(data.idx); startClientTimer(data.turnEndTime);
-            btnSeriAc.disabled = true; btnCiftAc.disabled = true; btnYandanIptal.style.display = "none"; desteTasDiv.draggable = false; desteTasDiv.disabled = true; document.getElementById('cop-left').classList.remove('yandan-alinabilir');
+            btnSeriAc.disabled = true; btnCiftAc.disabled = true; btnYandanIptal.style.display = "none"; btnGeriTopla.disabled = true;
+            desteTasDiv.draggable = false; desteTasDiv.disabled = true; document.getElementById('cop-left').classList.remove('yandan-alinabilir');
         });
 
         socket.on('tasCekildi', (tas) => {
@@ -684,10 +787,17 @@
         socket.on('tasAtildiOnay_Auto', (data) => { if (data.pId === myPlayerId) { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === data.tasId) { benimElim[i] = null; break; } } istakayiCiz(); } });
         
         socket.on('yandanAldinZorunluAc', () => { btnYandanIptal.style.display = "inline-block"; });
+        socket.on('yandanIptalKaldir', () => { btnYandanIptal.style.display = "none"; }); // DÜZELTME
         socket.on('yandanIptalEdildi', (silinecekTasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === silinecekTasId) { benimElim[i] = null; break; } } istakayiCiz(); btnYandanIptal.style.display = "none"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; });
-        socket.on('perAcildiOnay', (idler) => { for (let i = 0; i < 30; i++) { if (benimElim[i] && idler.includes(benimElim[i].id)) benimElim[i] = null; } istakayiCiz(); btnYandanIptal.style.display = "none"; showToast('Taşlar masaya açıldı!', 'success'); });
-        socket.on('islemeBasarili', (tasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === parseInt(tasId)) { benimElim[i] = null; break; } } istakayiCiz(); });
+        
+        socket.on('perAcildiOnay', (idler) => { for (let i = 0; i < 30; i++) { if (benimElim[i] && idler.includes(benimElim[i].id)) benimElim[i] = null; } istakayiCiz(); hamleYapildi = true; btnGeriTopla.disabled = false; showToast('Taşlar masaya açıldı!', 'success'); });
+        socket.on('islemeBasarili', (tasId) => { for(let i=0; i<30; i++) { if(benimElim[i] && benimElim[i].id === parseInt(tasId)) { benimElim[i] = null; break; } } istakayiCiz(); hamleYapildi = true; btnGeriTopla.disabled = false; });
         socket.on('okeyKazanildi', (okeyTas) => { let ilkBos = benimElim.findIndex(t => t === null); if(ilkBos !== -1) benimElim[ilkBos] = okeyTas; istakayiCiz(); showToast("ŞAHANE! Okey'i Çaldın.", 'success'); });
+
+        socket.on('geriToplandi', (data) => {
+            benimElim = Array(30).fill(null); data.el.forEach((tas, i) => benimElim[i] = tas); istakayiCiz();
+            renderMasa(data.perler); hamleYapildi = false; btnGeriTopla.disabled = true;
+        });
 
         socket.on('oyunBitti', (data) => {
             document.getElementById('bitis-ekrani').style.display = 'flex'; siraParlamasiGuncelle(-1); clearInterval(turnTimerInterval); document.getElementById('sure-kapsayici').style.display = 'none';

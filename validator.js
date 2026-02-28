@@ -35,6 +35,7 @@ class Validator {
         return true;
     }
 
+    // DÜZELTME: İşleme yapılabilmesi için sınır 4'ten 13'e çekildi!
     static isRunValid(group, gameOkey) {
         if (group.length < 3 || group.length > 13) return false;
         let effTiles = group.map(t => this.getEffectiveTile(t, gameOkey));
@@ -62,6 +63,9 @@ class Validator {
         if (groups.length === 0) return { success: false, message: "Açılacak grup yok!" };
         let totalScore = 0;
         for (let group of groups) {
+            // DÜZELTME: Açılış anında 4 taş kuralı korunuyor, işlemede serbest.
+            if (!isProcessing && group.length > 4) return { success: false, message: "Açılışta perler maksimum 4 taş uzunluğunda olabilir!" };
+            
             if (!this.isGroupValid(group, gameOkey)) return { success: false, message: "Geçersiz dizilim bulundu!" };
             let effTiles = group.map(t => this.getEffectiveTile(t, gameOkey));
             let normalTiles = effTiles.filter(t => !this.isOkey(t, gameOkey));
@@ -77,7 +81,7 @@ class Validator {
                 totalScore += resultVals.reduce((a, b) => a + b, 0);
             }
         }
-        if (isProcessing) return { success: true, score: totalScore }; // İşleme yapıyorsa 101 sınırı aranmaz
+        if (isProcessing) return { success: true, score: totalScore };
         return totalScore >= 101 ? { success: true, score: totalScore } : { success: false, message: `Puan yetersiz: ${totalScore}/101` };
     }
 
