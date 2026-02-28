@@ -53,10 +53,9 @@ function playNextSong(room) {
     }
 }
 
-// DÜZELTME: Küsüratlı (Milisaniyelik) Senkronizasyon 
 function sendSyncedMusic(socket, room) {
     if (room && room.music && room.music.currentSong) {
-        let elapsed = (Date.now() - room.music.currentSong.startedAt) / 1000; // Math.floor KALDIRILDI! Tam saniye kesri gidiyor.
+        let elapsed = (Date.now() - room.music.currentSong.startedAt) / 1000; 
         let payload = { ...room.music.currentSong, elapsedTime: elapsed };
         socket.emit('music_play', payload); 
     }
@@ -295,9 +294,10 @@ io.on('connection', (socket) => {
             let isOkeyTile = Validator.isOkey(atilanTas, room.globalOyun.okey);
             let isPlayable = room.ortayaAcilanTumPerler.length > 0 && isTilePlayable(atilanTas, room);
 
+            // OKEY ATMA VE İŞLEK TAŞ CEZASI (AYNEN KORUNDU)
             if (isOkeyTile || isPlayable) {
                 pInfo.cezalar += 101; let sebepMsj = isOkeyTile ? 'yere Okey' : 'işlek taş';
-                io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sebepMsj} attı ve 101 puan ceza yedi!`, type: 'system' });
+                io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sebepMsj} attı ve 101 ceza yedi!`, type: 'system' });
                 io.to(room.id).emit('bilgi', `${pInfo.isim}, ${sebepMsj} attığı için ceza yedi.`);
             }
 
@@ -329,6 +329,7 @@ io.on('connection', (socket) => {
     socket.on('seriAcmaTalebi', (gonderilenGruplar) => {
         let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id);
         if (index !== room.siraKimde) return; let pInfo = room.players[index];
+        
         if (pInfo.ciftAcmisMi && !pInfo.perAcmisMi) return socket.emit('hata', 'Çift açan oyuncu yeni seri açamaz, serilere sadece taş işleyebilir!');
 
         let isAlreadyOpened = pInfo.perAcmisMi || pInfo.ciftAcmisMi;
@@ -337,10 +338,25 @@ io.on('connection', (socket) => {
 
         let sonuc = Validator.calculate101Score(gonderilenGruplar, room.globalOyun.okey, isProcessing);
         if (sonuc.success || pInfo.perAcmisMi) {
-            let ilkKezAciliyor = !isAlreadyOpened; pInfo.perAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
-            if (ilkKezAciliyor) io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, seri el açtı.`, type: 'system' });
+            let ilkKezAciliyor = !isAlreadyOpened; 
 
             let idler = []; gonderilenGruplar.forEach(grup => { room.ortayaAcilanTumPerler.push(Validator.sortGroup(grup, room.globalOyun.okey)); grup.forEach(t => idler.push(t.id)); });
+
+            // YENİ: YANDAN ALINAN TAŞLA İLK DEFA SERİ AÇMA CEZASI (x10)
+            if (ilkKezAciliyor && pInfo.turnState.elAcmadanYandanAldi && pInfo.turnState.yandanAlinanTas) {
+                if (idler.includes(pInfo.turnState.yandanAlinanTas.id)) {
+                    let solIdx = (index - 1 + 4) % 4; let atanOyuncu = room.players[solIdx];
+                    let yTas = pInfo.turnState.yandanAlinanTas;
+                    let tasDegeri = Validator.getEffectiveTile(yTas, room.globalOyun.okey).value;
+                    let cezaPuani = tasDegeri * 10;
+                    atanOyuncu.cezalar += cezaPuani;
+                    io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${atanOyuncu.isim}, ${pInfo.isim}'e el açtıran taşı (${tasDegeri}) attığı için ${cezaPuani} ceza yedi!`, type: 'system' });
+                }
+            }
+
+            pInfo.perAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
+            if (ilkKezAciliyor) io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, seri el açtı.`, type: 'system' });
+
             pInfo.el = pInfo.el.filter(t => !idler.includes(t.id));
             checkYandanAlinanTas(pInfo, socket);
             socket.emit('perAcildiOnay', idler); io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler); 
@@ -360,10 +376,25 @@ io.on('connection', (socket) => {
 
         let sonuc = Validator.calculatePairs(gonderilenGruplar, room.globalOyun.okey, isProcessing);
         if (sonuc.success) {
-            let ilkKezAciliyor = !isAlreadyOpened; pInfo.ciftAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
+            let ilkKezAciliyor = !isAlreadyOpened; 
+
+            let idler = []; gonderilenGruplar.forEach(grup => { room.ortayaAcilanTumPerler.push(Validator.sortGroup(grup, room.globalOyun.okey)); grup.forEach(t => idler.push(t.id)); });
+            
+            // YENİ: YANDAN ALINAN TAŞLA İLK DEFA ÇİFT AÇMA CEZASI (x20)
+            if (ilkKezAciliyor && pInfo.turnState.elAcmadanYandanAldi && pInfo.turnState.yandanAlinanTas) {
+                if (idler.includes(pInfo.turnState.yandanAlinanTas.id)) {
+                    let solIdx = (index - 1 + 4) % 4; let atanOyuncu = room.players[solIdx];
+                    let yTas = pInfo.turnState.yandanAlinanTas;
+                    let tasDegeri = Validator.getEffectiveTile(yTas, room.globalOyun.okey).value;
+                    let cezaPuani = tasDegeri * 20;
+                    atanOyuncu.cezalar += cezaPuani;
+                    io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${atanOyuncu.isim}, ${pInfo.isim}'e çift açtıran taşı (${tasDegeri}) attığı için ${cezaPuani} ceza yedi!`, type: 'system' });
+                }
+            }
+
+            pInfo.ciftAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
             if (ilkKezAciliyor) io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, çift el açtı.`, type: 'system' });
             
-            let idler = []; gonderilenGruplar.forEach(grup => { room.ortayaAcilanTumPerler.push(Validator.sortGroup(grup, room.globalOyun.okey)); grup.forEach(t => idler.push(t.id)); });
             pInfo.el = pInfo.el.filter(t => !idler.includes(t.id));
             checkYandanAlinanTas(pInfo, socket);
             socket.emit('perAcildiOnay', idler); io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler); 

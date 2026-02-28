@@ -35,7 +35,6 @@ class Validator {
         return true;
     }
 
-    // DÜZELTME: İşleme yapılabilmesi için sınır 4'ten 13'e çekildi!
     static isRunValid(group, gameOkey) {
         if (group.length < 3 || group.length > 13) return false;
         let effTiles = group.map(t => this.getEffectiveTile(t, gameOkey));
@@ -45,12 +44,12 @@ class Validator {
         const targetColor = normalTiles[0].color;
         if (normalTiles.some(t => t.color !== targetColor)) return false;
 
-        let values = normalTiles.map(t => t.value).sort((a, b) => a - b);
+        let vals = normalTiles.map(t => t.value).sort((a, b) => a - b);
         let okeyCount = group.length - normalTiles.length;
 
         let req = 0; 
-        for(let i=0; i<values.length-1; i++){ 
-            let g = values[i+1]-values[i]-1; 
+        for(let i=0; i<vals.length-1; i++){ 
+            let g = vals[i+1]-vals[i]-1; 
             if(g < 0) return false; 
             req += g; 
         }
@@ -63,8 +62,8 @@ class Validator {
         if (groups.length === 0) return { success: false, message: "Açılacak grup yok!" };
         let totalScore = 0;
         for (let group of groups) {
-            // DÜZELTME: Açılış anında 4 taş kuralı korunuyor, işlemede serbest.
-            if (!isProcessing && group.length > 4) return { success: false, message: "Açılışta perler maksimum 4 taş uzunluğunda olabilir!" };
+            // DÜZELTME: Açılış perleri için maksimum uzunluk artık 5!
+            if (!isProcessing && group.length > 5) return { success: false, message: "Açılışta perler maksimum 5 taş uzunluğunda olabilir!" };
             
             if (!this.isGroupValid(group, gameOkey)) return { success: false, message: "Geçersiz dizilim bulundu!" };
             let effTiles = group.map(t => this.getEffectiveTile(t, gameOkey));

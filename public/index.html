@@ -60,6 +60,7 @@
         #chat-input { flex: 1; background: rgba(0,0,0,0.6); border: 1px solid #444; padding: 10px 15px; color: white; outline: none; font-size: 13px; border-radius: 25px 0 0 25px; transition: 0.2s;}
         #btn-chat-gonder { background: linear-gradient(to bottom, #f3e5ab, #d4af37); color: black; border: none; padding: 0 15px; font-weight: bold; cursor: pointer; font-size: 13px; border-radius: 0 25px 25px 0;}
 
+        /* DJ PANELİ TASARIMI */
         #dj-container { width: 100%; background: #111; border: 4px solid #1a1a1a; border-radius: 20px; padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 20px #000;}
         .dj-baslik { font-size: 12px; color: #888; text-transform: uppercase; font-weight: bold; margin-bottom: -5px; display: flex; justify-content: space-between;}
         #dj-suan-calan { color: #d4af37; font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -363,7 +364,6 @@
 
         document.getElementById('btn-dj-atla').addEventListener('click', () => socket.emit('sarkiAtlaOy'));
         
-        // MİLİSANİYE HASSASİYETLİ SENKRONİZASYON VE AUTOPLAY FİXİ
         socket.on('music_play', (song) => {
             if (song) {
                 currentSongPayload = song;
@@ -376,9 +376,7 @@
                         let driftDelay = (performance.now() - musicReceiveTime) / 1000;
                         let exactStart = (song.elapsedTime || 0) + driftDelay;
                         ytPlayer.loadVideoById({ videoId: song.id, startSeconds: exactStart });
-                    } else {
-                        setTimeout(playWhenReady, 100); 
-                    }
+                    } else { setTimeout(playWhenReady, 100); }
                 };
                 playWhenReady();
             } else {
@@ -389,7 +387,6 @@
             }
         });
 
-        // TARAYICI AUTOPLAY ENGELİNİ BYPASS EDEN GLOBAL TIKLAMA (SAYFA YENİLENDİĞİNDE)
         document.addEventListener('click', () => {
             if (ytPlayer && ytPlayerReady && currentSongPayload) {
                 let state = ytPlayer.getPlayerState();
@@ -506,8 +503,7 @@
 
         socket.on('odaGuncellendi', (data) => {
             document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; boyutlandir(); 
-            isimlerListesi = data.players;
-            currentRoomHostId = data.hostId;
+            isimlerListesi = data.players; currentRoomHostId = data.hostId;
             if (isimlerListesi.length > 0) {
                 let mIdx = isimlerListesi.findIndex(isim => isim === myPlayerName) || 0;
                 document.getElementById('isim-bottom').innerText = "Sen"; document.getElementById('etiket-right').innerText = isimlerListesi[(mIdx + 1) % 4] || "Bekleniyor";
@@ -536,7 +532,7 @@
         }
 
         function isRunValid(group) {
-            if (group.length < 3 || group.length > 4) return false;
+            if (group.length < 3 || group.length > 13) return false;
             let n = group.map(t => getEff(t)).filter(t => !isOkey(t)); if (n.length === 0) return true;
             if (n.some(t => t.color !== n[0].color)) return false;
             let vals = n.map(t => t.value).sort((a,b)=>a-b); let okeyC = group.length - n.length;
@@ -555,42 +551,32 @@
             return resultVals.reduce((a, b) => a + b, 0);
         }
 
+        // DÜZELTME: 5'li perleri destekleyen mükemmel ayrıştırıcı
         function splitGroup(groupData) {
             let g = groupData.t; let idxs = groupData.idxl; let len = g.length;
-            
             let isAllPairs = true;
-            if (len % 2 === 0 && len > 0) {
-                for (let i = 0; i < len; i += 2) { if (!isPairValid([g[i], g[i+1]])) { isAllPairs = false; break; } }
-            } else { isAllPairs = false; }
+            if (len % 2 === 0 && len > 0) { for (let i = 0; i < len; i += 2) { if (!isPairValid([g[i], g[i+1]])) { isAllPairs = false; break; } } } else { isAllPairs = false; }
+            if (isAllPairs) { let chunks = []; for (let i = 0; i < len; i += 2) chunks.push({ t: [g[i], g[i+1]], idxl: [idxs[i], idxs[i+1]] }); return chunks; }
 
-            if (isAllPairs) {
-                let chunks = [];
-                for (let i = 0; i < len; i += 2) chunks.push({ t: [g[i], g[i+1]], idxl: [idxs[i], idxs[i+1]] });
-                return chunks;
+            if (len <= 5) return [groupData];
+
+            let chunkSizes = [];
+            if (len === 6) chunkSizes = [3, 3];
+            else if (len === 7) chunkSizes = [4, 3];
+            else if (len === 8) chunkSizes = [4, 4];
+            else if (len === 9) chunkSizes = [5, 4];
+            else if (len === 10) chunkSizes = [5, 5];
+            else if (len === 11) chunkSizes = [4, 4, 3];
+            else if (len === 12) chunkSizes = [4, 4, 4];
+            else if (len === 13) chunkSizes = [5, 4, 4];
+            else chunkSizes = [len];
+
+            let chunks = []; let offset = 0;
+            for(let size of chunkSizes) {
+                chunks.push({ t: g.slice(offset, offset + size), idxl: idxs.slice(offset, offset + size) });
+                offset += size;
             }
-
-            if (len <= 4) return [groupData];
-
-            let chunks = [];
-            let offset = 0;
-            while (len - offset >= 3) {
-                let remain = len - offset;
-                if (remain === 5) {
-                    let c1 = g.slice(offset, offset+4); let c2 = g.slice(offset+1, offset+5);
-                    let score1 = isGroupValid(c1) ? getGroupScore(c1) : 0;
-                    let score2 = isGroupValid(c2) ? getGroupScore(c2) : 0;
-                    if (score2 > score1) { chunks.push({t: c2, idxl: idxs.slice(offset+1, offset+5)}); } 
-                    else { chunks.push({t: c1, idxl: idxs.slice(offset, offset+4)}); }
-                    offset += 5; 
-                } else if (remain >= 4 && remain !== 6) {
-                    chunks.push({t: g.slice(offset, offset+4), idxl: idxs.slice(offset, offset+4)});
-                    offset += 4;
-                } else { 
-                    chunks.push({t: g.slice(offset, offset+3), idxl: idxs.slice(offset, offset+3)});
-                    offset += 3;
-                }
-            }
-            return chunks.length > 0 ? chunks : [groupData];
+            return chunks;
         }
 
         function otomatikPuanHesapla() {
