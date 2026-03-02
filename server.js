@@ -24,7 +24,8 @@ function createRoom(roomId, roomName, hostId, settings) {
         music: { queue: [], currentSong: null, skipVotes: [] },
         settings: settings || { rounds: 1, isEsli: false, isKatlamali: false },
         currentRound: 1, overallScores: { 0: 0, 1: 0, 2: 0, 3: 0 }, teamScores: { A: 0, B: 0 },
-        currentMaxSeri: 100, currentMaxCift: 4, startingPlayerIndex: 0 // YENİ: Başlayan oyuncu sırası
+        currentMaxSeri: 100, currentMaxCift: 4, startingPlayerIndex: 0,
+        teamMaxSeri: { 0: 100, 1: 100 }, teamMaxCift: { 0: 4, 1: 4 } // YENİ: Takımlara özel katlama sınırı
     };
 }
 
@@ -44,7 +45,8 @@ function takeSnapshot(room, pInfo) {
         el: JSON.parse(JSON.stringify(pInfo.el)), perler: JSON.parse(JSON.stringify(room.ortayaAcilanTumPerler)),
         perAcmisMi: pInfo.perAcmisMi, ciftAcmisMi: pInfo.ciftAcmisMi, toplamSeriIsleme: pInfo.turnState.toplamSeriIsleme || 0,
         roomMaxSeri: room.currentMaxSeri, roomMaxCift: room.currentMaxCift,
-        acmaPuani: pInfo.acmaPuani, acmaCift: pInfo.acmaCift // YENİ: Puan hafızası
+        teamMaxSeri: { ...room.teamMaxSeri }, teamMaxCift: { ...room.teamMaxCift },
+        acmaPuani: pInfo.acmaPuani, acmaCift: pInfo.acmaCift
     };
 }
 
@@ -54,6 +56,7 @@ function getSafeRoomState(room) {
         settings: room.settings || { rounds: 1, isEsli: false, isKatlamali: false },
         currentRound: room.currentRound || 1, turnEndTime: room.turnEndTime, siraKimde: room.siraKimde,
         currentMaxSeri: room.currentMaxSeri || 100, currentMaxCift: room.currentMaxCift || 4,
+        teamMaxSeri: room.teamMaxSeri || {0:100, 1:100}, teamMaxCift: room.teamMaxCift || {0:4, 1:4},
         players: room.players.map(p => p ? { isim: p.isim, perAcmisMi: p.perAcmisMi, ciftAcmisMi: p.ciftAcmisMi, connected: p.connected, playerId: p.playerId, acmaPuani: p.acmaPuani, acmaCift: p.acmaCift } : null),
         spectators: room.spectators.map(p => p.isim)
     };
@@ -182,7 +185,7 @@ io.on('connection', (socket) => {
             if (activeRoom.status === 'playing' && benimIndex !== -1) {
                 socket.emit('reconnectData', { istaka: activeRoom.players[benimIndex].el, gosterge: activeRoom.globalOyun.gosterge, okey: activeRoom.globalOyun.okey, kalanTas: activeRoom.globalOyun.deck.length, benimIndex: benimIndex, isimler: activeRoom.players.map(p => p?p.isim:"Boş"), yerdekiTaslar: activeRoom.yerdekiTaslar, ortayaAcilanTumPerler: activeRoom.ortayaAcilanTumPerler, siraKimde: activeRoom.siraKimde, oyunIlkTur: activeRoom.oyunIlkTur });
                 let solIdx = (activeRoom.siraKimde - 1 + 4) % 4;
-                if (activeRoom.siraKimde === benimIndex) socket.emit('siraSende', { soldanGelenTas: activeRoom.yerdekiTaslar[solIdx], ilkTurMu: (activeRoom.oyunIlkTur && benimIndex === 0), turnEndTime: activeRoom.turnEndTime }); else socket.emit('siraBaskasinda', { idx: activeRoom.siraKimde, turnEndTime: activeRoom.turnEndTime });
+                if (activeRoom.siraKimde === benimIndex) socket.emit('siraSende', { soldanGelenTas: activeRoom.yerdekiTaslar[solIdx], ilkTurMu: (activeRoom.oyunIlkTur && benimIndex === activeRoom.startingPlayerIndex), turnEndTime: activeRoom.turnEndTime }); else socket.emit('siraBaskasinda', { idx: activeRoom.siraKimde, turnEndTime: activeRoom.turnEndTime });
             }
             broadcastRoom(activeRoom); sendSyncedMusic(socket, activeRoom); 
         } else { socket.emit('hubGoster', getPublicRooms()); }
@@ -221,7 +224,6 @@ io.on('connection', (socket) => {
         broadcastRoom(room); io.emit('hubGuncelle', getPublicRooms());
     });
 
-    // YENİ: Müzik Botu oyun döngüsünü dondurmaması için Promises ile ayrıldı.
     socket.on('sarkiAraEkle', (sarkiIsmi) => {
         let room = getRoomBySocket(socket.id); let u = users[socket.id]; if (!room || !u || !sarkiIsmi.trim()) return;
         ytSearch(sarkiIsmi).then(results => {
@@ -244,7 +246,6 @@ io.on('connection', (socket) => {
     });
     socket.on('sarkiBittiOtoGecis', () => { let room = getRoomBySocket(socket.id); let u = users[socket.id]; if (room && room.hostId === u.playerId) { playNextSong(room); } });
 
-    // YENİ: Masadan Oyun Sırasında Ayrılan Olursa Oyunu İptal Et
     socket.on('masadanAyril', () => {
         let room = getRoomBySocket(socket.id); let u = users[socket.id];
         if (room) {
@@ -315,7 +316,7 @@ io.on('connection', (socket) => {
 
             pInfo.el = pInfo.el.filter(t => t.id !== atilanTas.id); room.yerdekiTaslar[index] = atilanTas;
             socket.emit('tasAtildiOnay', atilanTas.id); io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); 
-            if (room.siraKimde === 0 && room.oyunIlkTur) room.oyunIlkTur = false;
+            if (room.siraKimde === room.startingPlayerIndex && room.oyunIlkTur) room.oyunIlkTur = false;
 
             if (pInfo.el.length === 0) return oyunuBitir(room, index, "El Bitti");
             if (room.globalOyun.deck.length === 0) return oyunuBitir(room, -1, "Deste Bitti"); 
@@ -336,6 +337,8 @@ io.on('connection', (socket) => {
         
         if (pInfo.turnState.snapshot.roomMaxSeri !== undefined) room.currentMaxSeri = pInfo.turnState.snapshot.roomMaxSeri;
         if (pInfo.turnState.snapshot.roomMaxCift !== undefined) room.currentMaxCift = pInfo.turnState.snapshot.roomMaxCift;
+        if (pInfo.turnState.snapshot.teamMaxSeri) room.teamMaxSeri = pInfo.turnState.snapshot.teamMaxSeri;
+        if (pInfo.turnState.snapshot.teamMaxCift) room.teamMaxCift = pInfo.turnState.snapshot.teamMaxCift;
 
         if (pInfo.turnState.yandanAlinanTas) socket.emit('yandanAldinZorunluAc');
         socket.emit('geriToplandi', { el: pInfo.el, perler: room.ortayaAcilanTumPerler });
@@ -352,9 +355,16 @@ io.on('connection', (socket) => {
         let isProcessing = isAlreadyOpened && runsOnTable;
 
         let sonuc = Validator.calculate101Score(gonderilenGruplar, room.globalOyun.okey, isProcessing);
-        let reqSeri = room.settings.isKatlamali ? room.currentMaxSeri + 1 : 101;
+        
+        // YENİ: Eşli Sistem Katlama Sınırı (Sadece karşı takımın açtığı puan esas alınır)
+        let reqSeri = 101;
+        if (room.settings.isKatlamali) {
+            if (room.settings.isEsli) {
+                let oppTeam = (index + 1) % 2;
+                reqSeri = (room.teamMaxSeri[oppTeam] || 100) + 1;
+            } else { reqSeri = room.currentMaxSeri + 1; }
+        }
 
-        // DÜZELTME: Uyarı mesajı özelleştirildi
         if (!isProcessing && sonuc.success && sonuc.score < reqSeri) {
             let msg = room.settings.isKatlamali ? `Katlamalı Mod aktif! Açmak için en az ${reqSeri} puan gerekiyor.` : `Açmak için en az 101 puana ulaşmalısınız.`;
             return socket.emit('hata', msg);
@@ -364,7 +374,6 @@ io.on('connection', (socket) => {
             let ilkKezAciliyor = !isAlreadyOpened; 
             let idler = []; gonderilenGruplar.forEach(grup => { 
                 let sortedGrup = Validator.sortGroup(grup, room.globalOyun.okey);
-                // YENİ: Okeyi kim açtıysa o etiketleniyor. (Çalma cezası için)
                 sortedGrup.forEach(t => { if (Validator.isOkey(t, room.globalOyun.okey)) t.ownerId = pInfo.playerId; });
                 room.ortayaAcilanTumPerler.push(sortedGrup); 
                 grup.forEach(t => idler.push(t.id)); 
@@ -381,9 +390,11 @@ io.on('connection', (socket) => {
             }
 
             if (ilkKezAciliyor) {
-                pInfo.perAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
-                pInfo.acmaPuani = sonuc.score;
-                if (room.settings.isKatlamali) room.currentMaxSeri = Math.max(room.currentMaxSeri, sonuc.score);
+                pInfo.perAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; pInfo.acmaPuani = sonuc.score;
+                if (room.settings.isKatlamali) {
+                    room.currentMaxSeri = Math.max(room.currentMaxSeri, sonuc.score);
+                    if (room.settings.isEsli) { let myTeam = index % 2; room.teamMaxSeri[myTeam] = Math.max(room.teamMaxSeri[myTeam], sonuc.score); }
+                }
                 io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sonuc.score} puanla seri el açtı.`, type: 'system' });
             }
 
@@ -403,7 +414,15 @@ io.on('connection', (socket) => {
         let isAlreadyOpened = pInfo.perAcmisMi || pInfo.ciftAcmisMi;
         let isProcessing = isAlreadyOpened;
 
-        let reqCift = room.settings.isKatlamali ? room.currentMaxCift + 1 : 5;
+        // YENİ: Eşli Sistem Katlama Sınırı (Sadece karşı takımın açtığı çift esas alınır)
+        let reqCift = 5;
+        if (room.settings.isKatlamali) {
+            if (room.settings.isEsli) {
+                let oppTeam = (index + 1) % 2;
+                reqCift = (room.teamMaxCift[oppTeam] || 4) + 1;
+            } else { reqCift = room.currentMaxCift + 1; }
+        }
+
         let sonuc = Validator.calculatePairs(gonderilenGruplar, room.globalOyun.okey, isProcessing);
         
         if (!isProcessing && sonuc.success && sonuc.pairCount < reqCift) {
@@ -431,9 +450,11 @@ io.on('connection', (socket) => {
             }
 
             if (ilkKezAciliyor) {
-                pInfo.ciftAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
-                pInfo.acmaCift = sonuc.pairCount;
-                if (room.settings.isKatlamali) room.currentMaxCift = Math.max(room.currentMaxCift, sonuc.pairCount);
+                pInfo.ciftAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; pInfo.acmaCift = sonuc.pairCount;
+                if (room.settings.isKatlamali) {
+                    room.currentMaxCift = Math.max(room.currentMaxCift, sonuc.pairCount);
+                    if (room.settings.isEsli) { let myTeam = index % 2; room.teamMaxCift[myTeam] = Math.max(room.teamMaxCift[myTeam], sonuc.pairCount); }
+                }
                 io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sonuc.pairCount} çift ile el açtı.`, type: 'system' });
             }
             
@@ -485,7 +506,6 @@ io.on('connection', (socket) => {
             pInfo.el = pInfo.el.filter(t => t.id !== islenecekTas.id); 
             if (hedefPer.length > 2 && pInfo.ciftAcmisMi && !pInfo.perAcmisMi) { pInfo.turnState.toplamSeriIsleme = (pInfo.turnState.toplamSeriIsleme || 0) + 1; }
 
-            // YENİ: Okey çalındıysa cezası hesaplanıyor!
             if (okeyKazanildi && kazanilanOkeyTas.ownerId && kazanilanOkeyTas.ownerId !== pInfo.playerId) {
                 let ownerIdx = room.players.findIndex(p => p && p.playerId === kazanilanOkeyTas.ownerId);
                 if (ownerIdx !== -1) {
@@ -506,7 +526,6 @@ io.on('connection', (socket) => {
     socket.on('sonrakiEl', () => {
         let room = getRoomBySocket(socket.id); let u = users[socket.id];
         if (room && room.hostId === u.playerId && room.status === 'waiting') {
-            room.currentMaxSeri = 100; room.currentMaxCift = 4;
             startGame(room);
         }
     });
@@ -514,18 +533,32 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => { let room = getRoomBySocket(socket.id); if (room) { let player = room.players.find(p => p && p.socketId === socket.id); if (player) player.connected = false; } });
 });
 
+// YENİ: 22 TAŞ ALACAK KİŞİYİ AYARLAYAN BAŞLATMA FONKSİYONU
 function startGame(room) {
     room.status = 'playing'; room.globalOyun = new Okey101(); room.ortayaAcilanTumPerler = []; room.yerdekiTaslar = { 0: null, 1: null, 2: null, 3: null };
-    room.currentMaxSeri = 100; room.currentMaxCift = 4; // YENİ EL: Sınırlar sıfırlandı
+    room.currentMaxSeri = 100; room.currentMaxCift = 4;
+    room.teamMaxSeri = { 0: 100, 1: 100 }; room.teamMaxCift = { 0: 4, 1: 4 };
     
-    for(let i=0; i<4; i++) { room.players[i].el = room.globalOyun.players[`player${i+1}`]; room.players[i].perAcmisMi = false; room.players[i].ciftAcmisMi = false; room.players[i].cezalar = 0; room.players[i].acmaPuani = null; room.players[i].acmaCift = null; }
+    // Oyun motorunun 22 taşı her zaman Player1'e verme mantığını kırıyoruz
+    let hands = [ room.globalOyun.players[`player1`], room.globalOyun.players[`player2`], room.globalOyun.players[`player3`], room.globalOyun.players[`player4`] ];
+    let maxLen = 0; let starterHandIdx = 0;
+    for(let i=0; i<4; i++){ if(hands[i].length > maxLen){ maxLen = hands[i].length; starterHandIdx = i; } }
+    let starterHand = hands.splice(starterHandIdx, 1)[0]; // 22'li taşı ayır
+    
+    for(let i=0; i<4; i++) { 
+        room.players[i].el = (i === room.startingPlayerIndex) ? starterHand : hands.pop();
+        room.players[i].perAcmisMi = false; room.players[i].ciftAcmisMi = false; room.players[i].cezalar = 0; room.players[i].acmaPuani = null; room.players[i].acmaCift = null; 
+    }
+
     let isimListesi = room.players.map(o => o.isim);
     room.players.forEach((oyuncu, index) => { io.to(oyuncu.socketId).emit('oyunBasladi', { istaka: oyuncu.el, gosterge: room.globalOyun.gosterge, okey: room.globalOyun.okey, kalanTas: room.globalOyun.deck.length, benimIndex: index, isimler: isimListesi, maxSeri: room.currentMaxSeri, maxCift: room.currentMaxCift }); });
     io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); broadcastRoom(room);
     if(room.music.currentSong) io.to(room.id).emit('music_play', room.music.currentSong);
     
     room.oyunIlkTur = true; room.siraKimde = room.startingPlayerIndex; sirayiGecir(room, room.siraKimde); io.emit('hubGuncelle', getPublicRooms());
-    room.startingPlayerIndex = (room.startingPlayerIndex + 1) % 4; // YENİ: Bir dahaki el yandaki başlasın
+    
+    // DÜZELTME: Bir dahaki ele yanındaki kişi başlayacak
+    room.startingPlayerIndex = (room.startingPlayerIndex + 1) % 4; 
 }
 
 function forceAutoPlay(room, playerIndex) {
@@ -538,7 +571,7 @@ function forceAutoPlay(room, playerIndex) {
         let isOkeyTile = Validator.isOkey(atilanTas, room.globalOyun.okey); let isPlayable = room.ortayaAcilanTumPerler.length > 0 && isTilePlayable(atilanTas, room);
         if (isOkeyTile || isPlayable) { pInfo.cezalar += 101; let sebepMsj = isOkeyTile ? 'yere Okey' : 'işlek taş'; io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sebepMsj} attı ve 101 ceza yedi!`, type: 'system' }); io.to(room.id).emit('bilgi', `${pInfo.isim}, ${sebepMsj} attığı için ceza yedi.`); }
         room.yerdekiTaslar[playerIndex] = atilanTas; io.to(pInfo.socketId).emit('istakaGuncellendi', pInfo.el); io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim} süresi dolduğu için otomatik oynadı.`, type: 'system' });
-        if (room.siraKimde === room.startingPlayerIndex && room.oyunIlkTur) room.oyunIlkTur = false;
+        if (room.siraKimde === (room.startingPlayerIndex === 0 ? 3 : room.startingPlayerIndex - 1) && room.oyunIlkTur) room.oyunIlkTur = false; // Tur tamamlandığında
         if (pInfo.el.length === 0) return oyunuBitir(room, playerIndex, "El Bitti"); if (room.globalOyun.deck.length === 0) return oyunuBitir(room, -1, "Deste Bitti"); 
         room.siraKimde = (room.siraKimde + 1) % 4; sirayiGecir(room, room.siraKimde);
     }
@@ -547,7 +580,8 @@ function forceAutoPlay(room, playerIndex) {
 function sirayiGecir(room, yeniSiraIndex) {
     if (room.turnTimer) clearTimeout(room.turnTimer); let turnDuration = 60000; room.turnEndTime = Date.now() + turnDuration;
     room.players.forEach((oyuncu, idx) => {
-        let ilkElBasiMi = (room.oyunIlkTur && idx === room.startingPlayerIndex);
+        // Yeni ele başlayan kişinin turunda olup olmadığımızı kontrol ediyoruz
+        let ilkElBasiMi = (room.oyunIlkTur && idx === ((room.startingPlayerIndex === 0) ? 3 : room.startingPlayerIndex - 1));
         if (oyuncu) {
             oyuncu.turnState = { tasCektiMi: ilkElBasiMi, elAcmadanYandanAldi: false, yandanAlinanTas: null, islenenPerler: {}, toplamSeriIsleme: 0 };
             if (ilkElBasiMi) takeSnapshot(room, oyuncu);
@@ -589,7 +623,6 @@ function oyunuBitir(room, bitirenIndex, sebep) {
 
     let viewScores = []; let kazananIsim = "Bilinmiyor";
 
-    // YENİ: Deste bittiğinde Kazanan Tespiti
     if (bitirenIndex === -1) {
         if (room.settings.isEsli) {
             let teamA = roundScores[0] + roundScores[2]; let teamB = roundScores[1] + roundScores[3];
@@ -614,7 +647,6 @@ function oyunuBitir(room, bitirenIndex, sebep) {
     if (!isLastRound) room.currentRound++;
     viewScores.sort((a,b) => a.puan - b.puan);
 
-    // KESİN DÜZELTME: Eski hatalı isim tamamen temizlendi.
     io.to(room.id).emit('oyunBitti', { kazananAdi: kazananIsim, kazanan: bitirenIndex, skorlar: viewScores, sebep: sebep, isLastRound: isLastRound, isEsli: room.settings.isEsli });
     broadcastRoom(room); io.emit('hubGuncelle', getPublicRooms());
 }

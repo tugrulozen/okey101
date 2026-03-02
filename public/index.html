@@ -193,7 +193,7 @@
 
     <div id="yt-player" style="position: absolute; top: -9999px; left: -9999px;"></div>
 
-    <div id="giris-ekrani" class="tam-ekran" style="display: none;">
+    <div id="giris-ekrani" class="tam-ekran">
         <div class="kutu">
             <h1>Area51 Okey</h1>
             <input type="text" id="oyuncu-isim-input" placeholder="Adını Gir" maxlength="12">
@@ -411,11 +411,9 @@
         let currentRoomHostId = null; let currentOdaDurum = null; let isUpdatingRoom = false;
         let reqSeriPuan = 101; let reqCiftSayi = 5;
 
-        // Ekrana Dokunulduğunda Mobil Cihazlarda Tam Ekran İste
+        // Ekrana Dokunulduğunda Mobil Cihazlarda Tam Ekran İste (Safari/Chrome destekler)
         document.body.addEventListener('touchstart', () => {
-            if (window.innerWidth <= 768 && !document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e => {});
-            }
+            if (window.innerWidth <= 768 && !document.fullscreenElement) { document.documentElement.requestFullscreen().catch(e => {}); }
         }, {once: true});
 
         let ytPlayer; let ytPlayerReady = false; let currentSongPayload = null; let musicReceiveTime = 0;
@@ -440,6 +438,8 @@
                     if (ytPlayer && ytPlayerReady && ytPlayer.loadVideoById) {
                         let driftDelay = (performance.now() - musicReceiveTime) / 1000;
                         ytPlayer.loadVideoById({ videoId: song.id, startSeconds: (song.elapsedTime || 0) + driftDelay });
+                        // YENİ: Tarayıcı engelini geçmek için şarkıyı zorla tetikle
+                        setTimeout(() => { if(ytPlayer.getPlayerState() !== YT.PlayerState.PLAYING) ytPlayer.playVideo(); }, 1500);
                     } else { setTimeout(playWhenReady, 100); }
                 }; playWhenReady();
             } else {
@@ -492,7 +492,7 @@
             }, 1000);
         }
 
-        // GLOBAL SÜRÜKLEME TEMİZLEYİCİSİ (Tarayıcı Takılmasını Önler)
+        // GLOBAL SÜRÜKLEME TEMİZLEYİCİSİ (Takılmaları Çözer)
         function cleanupDrag() { document.querySelectorAll('.tas.dragging').forEach(t => t.classList.remove('dragging')); document.querySelectorAll('.drag-over').forEach(t => t.classList.remove('drag-over')); document.getElementById('cop-bottom').classList.remove('drag-over'); draggedTas = null; }
         window.addEventListener('mouseup', cleanupDrag); window.addEventListener('touchend', cleanupDrag);
         document.addEventListener('dragend', cleanupDrag); 
@@ -511,11 +511,8 @@
         let myPlayerId = localStorage.getItem('okey_playerId'); let myPlayerName = localStorage.getItem('okey_playerName');
         if (!myPlayerId) { myPlayerId = Math.random().toString(36).substr(2, 9); localStorage.setItem('okey_playerId', myPlayerId); }
         
-        // YENİ: İsim daha önceden alınmışsa menü asla gözükmez!
-        if (myPlayerName) { 
-            document.getElementById('giris-ekrani').style.display = 'none'; 
-            socket.emit('kimlikBildir', { playerId: myPlayerId, isim: myPlayerName }); 
-        } else { document.getElementById('giris-ekrani').style.display = 'flex'; }
+        if (myPlayerName) { document.getElementById('giris-ekrani').style.display = 'none'; socket.emit('kimlikBildir', { playerId: myPlayerId, isim: myPlayerName }); } 
+        else { document.getElementById('giris-ekrani').style.display = 'flex'; }
 
         document.getElementById('btn-kimlik-olustur').addEventListener('click', () => { let isim = document.getElementById('oyuncu-isim-input').value.trim(); if(isim) { localStorage.setItem('okey_playerName', isim); socket.emit('kimlikBildir', { playerId: myPlayerId, isim: isim }); document.getElementById('giris-ekrani').style.display = 'none'; } });
         
@@ -530,9 +527,7 @@
         socket.on('hubGuncelle', (odalar) => { if(document.getElementById('hub-ekrani').style.display === 'flex') renderHub(odalar); });
         
         function openYeniMasa() {
-            isUpdatingRoom = false;
-            document.getElementById('ayar-isim').value = ""; document.getElementById('ayar-el').value = "1"; document.getElementById('ayar-esli').checked = false; document.getElementById('ayar-katlama').checked = false;
-            document.getElementById('btn-modal-kur').innerText = "Kur"; document.getElementById('modal-kur').style.display = 'flex';
+            isUpdatingRoom = false; document.getElementById('ayar-isim').value = ""; document.getElementById('ayar-el').value = "1"; document.getElementById('ayar-esli').checked = false; document.getElementById('ayar-katlama').checked = false; document.getElementById('btn-modal-kur').innerText = "Kur"; document.getElementById('modal-kur').style.display = 'flex';
         }
         
         function openAyarlar() {
@@ -576,7 +571,6 @@
                     let p = data.players[targetIdx];
                     if (!p) { document.querySelector(`#${id} .isim-text`).innerText = "Bekleniyor"; document.querySelector(`#${id} .durum-text`).innerHTML = ""; return; }
                     document.querySelector(`#${id} .isim-text`).innerText = p.isim;
-                    // YENİ: Etiketlerde açılan puanı yazma sistemi
                     let stat = p.ciftAcmisMi ? `<span style='color:#3498db'>Çift Açtı (${p.acmaCift})</span>` : (p.perAcmisMi ? `<span style='color:#f1c40f'>Seri Açtı (${p.acmaPuani})</span>` : "");
                     document.querySelector(`#${id} .durum-text`).innerHTML = stat;
                 };
@@ -604,15 +598,16 @@
                 }
             } else {
                 document.getElementById('lobi-ekrani').style.display = 'none'; document.getElementById('bitis-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; boyutlandir();
-                let isKat = data.settings ? data.settings.isKatlamali : false;
-                reqSeriPuan = isKat ? (data.currentMaxSeri || 100) + 1 : 101;
-                reqCiftSayi = isKat ? (data.currentMaxCift || 4) + 1 : 5;
+                
+                let isKat = data.settings ? data.settings.isKatlamali : false; let isEsli = data.settings ? data.settings.isEsli : false; let mIdx = data.players.findIndex(p => p && p.playerId === myPlayerId);
+                if (isKat) {
+                    if (isEsli && mIdx !== -1) { let oppTeam = (mIdx + 1) % 2; reqSeriPuan = (data.teamMaxSeri[oppTeam] || 100) + 1; reqCiftSayi = (data.teamMaxCift[oppTeam] || 4) + 1; } 
+                    else { reqSeriPuan = (data.currentMaxSeri || 100) + 1; reqCiftSayi = (data.currentMaxCift || 4) + 1; }
+                } else { reqSeriPuan = 101; reqCiftSayi = 5; }
+                
                 document.getElementById('hedef-seri').innerText = isKat ? `Min: ${reqSeriPuan}` : "";
                 document.getElementById('hedef-cift').innerText = `/${reqCiftSayi}`;
-                
-                // YENİ: Süre senkronizasyonu sayfa yenilemede geri getirildi.
-                if(data.turnEndTime) startClientTimer(data.turnEndTime);
-                siraParlamasiGuncelle(data.siraKimde);
+                if(data.turnEndTime) startClientTimer(data.turnEndTime); siraParlamasiGuncelle(data.siraKimde);
             }
         });
 
@@ -995,7 +990,6 @@
             renderMasa(data.perler); hamleYapildi = false; btnGeriTopla.disabled = true;
         });
 
-        // KESİN DÜZELTME: Tablo Çökme Engeli tamamen temizlendi
         socket.on('oyunBitti', (data) => {
             try {
                 document.getElementById('bitis-ekrani').style.display = 'flex'; 
