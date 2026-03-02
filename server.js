@@ -14,50 +14,62 @@ app.use(express.static('public'));
 const rooms = {}; 
 const users = {}; 
 
-function createRoom(roomId, roomName, hostId) {
+function createRoom(roomId, roomName, hostId, settings) {
     return {
-        id: roomId, name: roomName, status: 'waiting', players: [], hostId: hostId,
+        id: roomId, name: roomName, status: 'waiting', 
+        players: [null, null, null, null], spectators: [], hostId: hostId,
         globalOyun: null, siraKimde: 0, ortayaAcilanTumPerler: [], 
         yerdekiTaslar: { 0: null, 1: null, 2: null, 3: null }, oyunIlkTur: true,
         turnTimer: null, turnEndTime: null,
-        music: { queue: [], currentSong: null, skipVotes: [] }
+        music: { queue: [], currentSong: null, skipVotes: [] },
+        settings: settings || { rounds: 1, isEsli: false, isKatlamali: false },
+        currentRound: 1, overallScores: { 0: 0, 1: 0, 2: 0, 3: 0 }, teamScores: { A: 0, B: 0 },
+        currentMaxSeri: 100, currentMaxCift: 4
     };
 }
 
-function getPublicRooms() { return Object.values(rooms).map(r => ({ id: r.id, name: r.name, playerCount: r.players.length, status: r.status, playerIds: r.players.map(p => p.playerId) })); }
+function getPublicRooms() { return Object.values(rooms).map(r => ({ id: r.id, name: r.name, playerCount: r.players.filter(p=>p!==null).length, status: r.status, playerIds: r.players.filter(p=>p!==null).map(p => p.playerId) })); }
 
 function getRoomBySocket(socketId) {
-    for (let rId in rooms) { if (rooms[rId].players.find(p => p.socketId === socketId)) return rooms[rId]; }
+    for (let rId in rooms) { 
+        let isPlayer = rooms[rId].players.find(p => p && p.socketId === socketId);
+        let isSpectator = rooms[rId].spectators.find(p => p && p.socketId === socketId);
+        if (isPlayer || isSpectator) return rooms[rId]; 
+    }
     return null;
 }
 
 function takeSnapshot(room, pInfo) {
     pInfo.turnState.snapshot = {
-        el: JSON.parse(JSON.stringify(pInfo.el)),
-        perler: JSON.parse(JSON.stringify(room.ortayaAcilanTumPerler)),
-        perAcmisMi: pInfo.perAcmisMi,
-        ciftAcmisMi: pInfo.ciftAcmisMi,
-        toplamSeriIsleme: pInfo.turnState.toplamSeriIsleme || 0
+        el: JSON.parse(JSON.stringify(pInfo.el)), perler: JSON.parse(JSON.stringify(room.ortayaAcilanTumPerler)),
+        perAcmisMi: pInfo.perAcmisMi, ciftAcmisMi: pInfo.ciftAcmisMi, toplamSeriIsleme: pInfo.turnState.toplamSeriIsleme || 0,
+        roomMaxSeri: room.currentMaxSeri, roomMaxCift: room.currentMaxCift
+    };
+}
+
+function getSafeRoomState(room) {
+    return {
+        id: room.id, name: room.name, hostId: room.hostId, status: room.status,
+        settings: room.settings || { rounds: 1, isEsli: false, isKatlamali: false },
+        currentRound: room.currentRound || 1,
+        currentMaxSeri: room.currentMaxSeri || 100, currentMaxCift: room.currentMaxCift || 4,
+        players: room.players.map(p => p ? { isim: p.isim, perAcmisMi: p.perAcmisMi, ciftAcmisMi: p.ciftAcmisMi, connected: p.connected, playerId: p.playerId } : null),
+        spectators: room.spectators.map(p => p.isim)
     };
 }
 
 function playNextSong(room) {
-    room.music.skipVotes = [];
-    room.music.currentSong = room.music.queue.shift() || null;
+    room.music.skipVotes = []; room.music.currentSong = room.music.queue.shift() || null;
     if (room.music.currentSong) {
         room.music.currentSong.startedAt = Date.now(); 
-        let payload = { ...room.music.currentSong, elapsedTime: 0 };
-        io.to(room.id).emit('music_play', payload);
-    } else {
-        io.to(room.id).emit('music_play', null);
-    }
+        io.to(room.id).emit('music_play', { ...room.music.currentSong, elapsedTime: 0 });
+    } else { io.to(room.id).emit('music_play', null); }
 }
 
 function sendSyncedMusic(socket, room) {
     if (room && room.music && room.music.currentSong) {
         let elapsed = (Date.now() - room.music.currentSong.startedAt) / 1000; 
-        let payload = { ...room.music.currentSong, elapsedTime: elapsed };
-        socket.emit('music_play', payload); 
+        socket.emit('music_play', { ...room.music.currentSong, elapsedTime: elapsed }); 
     }
 }
 
@@ -67,38 +79,25 @@ function getOkeyRepresentedTile(group, okeyIndex, gameOkey) {
     if (normalTiles.length === 0) return null; 
 
     let isSet = normalTiles.every(t => t.value === normalTiles[0].value);
-    if (isSet) {
-        return { isSet: true, value: normalTiles[0].value, presentColors: normalTiles.map(t=>t.color) };
-    } else {
-        let color = normalTiles[0].color;
-        let firstNormalIdx = effTiles.findIndex(t => !Validator.isOkey(t, gameOkey));
-        let firstNormalVal = effTiles[firstNormalIdx].value;
-        let targetVal = firstNormalVal + (okeyIndex - firstNormalIdx);
+    if (isSet) { return { isSet: true, value: normalTiles[0].value, presentColors: normalTiles.map(t=>t.color) }; } 
+    else {
+        let color = normalTiles[0].color; let firstNormalIdx = effTiles.findIndex(t => !Validator.isOkey(t, gameOkey));
+        let firstNormalVal = effTiles[firstNormalIdx].value; let targetVal = firstNormalVal + (okeyIndex - firstNormalIdx);
         return { isSet: false, color: color, value: targetVal };
     }
 }
 
 function tryAttachTileStrict(per, tile, gameOkey) {
-    let isOkeyTile = Validator.isOkey(tile, gameOkey);
-    let eTile = Validator.getEffectiveTile(tile, gameOkey);
+    let isOkeyTile = Validator.isOkey(tile, gameOkey); let eTile = Validator.getEffectiveTile(tile, gameOkey);
     let normalTiles = per.filter(t => !Validator.isOkey(t, gameOkey));
     if (normalTiles.length === 0) return null;
 
-    let isSet = true;
-    let firstVal = Validator.getEffectiveTile(normalTiles[0], gameOkey).value;
-    for (let t of normalTiles) {
-        if (Validator.getEffectiveTile(t, gameOkey).value !== firstVal) { isSet = false; break; }
-    }
+    let isSet = true; let firstVal = Validator.getEffectiveTile(normalTiles[0], gameOkey).value;
+    for (let t of normalTiles) { if (Validator.getEffectiveTile(t, gameOkey).value !== firstVal) { isSet = false; break; } }
 
     if (isSet) {
-        if (per.length >= 4) return null;
         if (isOkeyTile) { return [...per, tile]; } 
-        else {
-            if (eTile.value === firstVal) {
-                let presentColors = normalTiles.map(t => Validator.getEffectiveTile(t, gameOkey).color);
-                if (!presentColors.includes(eTile.color)) return [...per, tile];
-            }
-        }
+        else { if (eTile.value === firstVal) { let presentColors = normalTiles.map(t => Validator.getEffectiveTile(t, gameOkey).color); if (!presentColors.includes(eTile.color)) return [...per, tile]; } }
         return null;
     } else {
         if (per.length >= 13) return null;
@@ -107,9 +106,7 @@ function tryAttachTileStrict(per, tile, gameOkey) {
 
         let firstNormalIdx = per.findIndex(t => !Validator.isOkey(t, gameOkey));
         let firstNormalVal = Validator.getEffectiveTile(per[firstNormalIdx], gameOkey).value;
-
-        let leftMostVal = firstNormalVal - firstNormalIdx;
-        let rightMostVal = leftMostVal + per.length - 1;
+        let leftMostVal = firstNormalVal - firstNormalIdx; let rightMostVal = leftMostVal + per.length - 1;
 
         if (isOkeyTile) {
             if (rightMostVal < 13) return [...per, tile]; 
@@ -128,17 +125,21 @@ function isTilePlayable(tile, room) {
     if (Validator.isOkey(tile, gameOkey)) return true; 
 
     for (let per of room.ortayaAcilanTumPerler) {
-        if (per.length === 2) continue; 
-        
+        if (per.length === 2) {
+            let okeyIndex = per.findIndex(t => Validator.isOkey(t, gameOkey));
+            if (okeyIndex !== -1) {
+                let norm = per.find(x => !Validator.isOkey(x, gameOkey)) || per[0];
+                let eNew = Validator.getEffectiveTile(tile, gameOkey);
+                let eNorm = Validator.getEffectiveTile(norm, gameOkey);
+                if (eNew.color === eNorm.color && eNew.value === eNorm.value) return true;
+            }
+            continue; 
+        }
         let okeyIndex = per.findIndex(t => Validator.isOkey(t, gameOkey));
         if (okeyIndex !== -1) {
-            let rep = getOkeyRepresentedTile(per, okeyIndex, gameOkey);
-            let eNew = Validator.getEffectiveTile(tile, gameOkey);
-            if (rep && rep.isSet) {
-                if (eNew.value === rep.value && !rep.presentColors.includes(eNew.color) && rep.presentColors.length === 3) return true;
-            } else if (rep) {
-                if (eNew.color === rep.color && eNew.value === rep.value) return true;
-            }
+            let rep = getOkeyRepresentedTile(per, okeyIndex, gameOkey); let eNew = Validator.getEffectiveTile(tile, gameOkey);
+            if (rep && rep.isSet) { if (eNew.value === rep.value && !rep.presentColors.includes(eNew.color) && rep.presentColors.length === 3) return true; } 
+            else if (rep) { if (eNew.color === rep.color && eNew.value === rep.value) return true; }
         }
         if (tryAttachTileStrict(per, tile, gameOkey) !== null) return true;
     }
@@ -148,96 +149,114 @@ function isTilePlayable(tile, room) {
 function checkYandanAlinanTas(pInfo, socket) {
     if (pInfo.turnState.yandanAlinanTas) {
         if (!pInfo.el.find(t => t.id === pInfo.turnState.yandanAlinanTas.id)) {
-            pInfo.turnState.yandanAlinanTas = null;
-            pInfo.turnState.elAcmadanYandanAldi = false;
-            socket.emit('yandanIptalKaldir'); 
+            pInfo.turnState.yandanAlinanTas = null; pInfo.turnState.elAcmadanYandanAldi = false; socket.emit('yandanIptalKaldir'); 
         }
     }
 }
 
+function broadcastRoom(room) { io.to(room.id).emit('odaGuncellendi', getSafeRoomState(room)); }
+
 io.on('connection', (socket) => {
     
-    socket.on('kimlikBildir', ({ playerId, isim }) => {
-        users[socket.id] = { playerId, isim }; let activeRoom = null;
-        for (let rId in rooms) { let player = rooms[rId].players.find(p => p.playerId === playerId); if (player) { player.socketId = socket.id; player.connected = true; player.isim = isim; activeRoom = rooms[rId]; break; } }
-        if (activeRoom) {
-            socket.join(activeRoom.id); let benimIndex = activeRoom.players.findIndex(p => p.playerId === playerId);
-            if (activeRoom.status === 'playing') {
-                socket.emit('reconnectData', { istaka: activeRoom.players[benimIndex].el, gosterge: activeRoom.globalOyun.gosterge, okey: activeRoom.globalOyun.okey, kalanTas: activeRoom.globalOyun.deck.length, benimIndex: benimIndex, isimler: activeRoom.players.map(p => p.isim), yerdekiTaslar: activeRoom.yerdekiTaslar, ortayaAcilanTumPerler: activeRoom.ortayaAcilanTumPerler, siraKimde: activeRoom.siraKimde, oyunIlkTur: activeRoom.oyunIlkTur });
-                let solIdx = (activeRoom.siraKimde - 1 + 4) % 4;
-                if (activeRoom.siraKimde === benimIndex) socket.emit('siraSende', { soldanGelenTas: activeRoom.yerdekiTaslar[solIdx], ilkTurMu: (activeRoom.oyunIlkTur && benimIndex === 0), turnEndTime: activeRoom.turnEndTime }); else socket.emit('siraBaskasinda', { idx: activeRoom.siraKimde, turnEndTime: activeRoom.turnEndTime });
-            }
-            io.to(activeRoom.id).emit('odaGuncellendi', { players: activeRoom.players.map(p => p.isim), hostId: activeRoom.hostId, status: activeRoom.status });
-            sendSyncedMusic(socket, activeRoom); 
-        } else { socket.emit('hubGoster', getPublicRooms()); }
-    });
-
-    socket.on('odaOlustur', (odaAdi) => {
-        let u = users[socket.id]; if(!u) return; let roomId = 'room_' + Date.now();
-        let newRoom = createRoom(roomId, odaAdi || `${u.isim}'in Masası`, u.playerId);
-        newRoom.players.push({ playerId: u.playerId, socketId: socket.id, isim: u.isim, connected: true, el: [], perAcmisMi: false, ciftAcmisMi: false, turnState: {}, cezalar: 0 });
-        rooms[roomId] = newRoom; socket.join(roomId); io.to(roomId).emit('odaGuncellendi', { players: newRoom.players.map(p => p.isim), hostId: newRoom.hostId, status: newRoom.status }); io.emit('hubGuncelle', getPublicRooms());
-    });
-
-    socket.on('odayaKatil', (roomId) => {
-        let room = rooms[roomId]; let u = users[socket.id]; if (!room || !u) return socket.emit('hata', 'Odaya katılamazsınız.');
-        let existingPlayer = room.players.find(p => p.playerId === u.playerId);
-        if (room.status === 'playing') {
-            if (!existingPlayer) return socket.emit('hata', 'Oyun başlamış.'); existingPlayer.socketId = socket.id; existingPlayer.connected = true; socket.join(roomId);
-            let benimIndex = room.players.findIndex(p => p.playerId === u.playerId);
-            socket.emit('reconnectData', { istaka: room.players[benimIndex].el, gosterge: room.globalOyun.gosterge, okey: room.globalOyun.okey, kalanTas: room.globalOyun.deck.length, benimIndex: benimIndex, isimler: room.players.map(p => p.isim), yerdekiTaslar: room.yerdekiTaslar, ortayaAcilanTumPerler: room.ortayaAcilanTumPerler, siraKimde: room.siraKimde, oyunIlkTur: room.oyunIlkTur });
-            let solIdx = (room.siraKimde - 1 + 4) % 4; if (room.siraKimde === benimIndex) socket.emit('siraSende', { soldanGelenTas: room.yerdekiTaslar[solIdx], ilkTurMu: (room.oyunIlkTur && benimIndex === 0), turnEndTime: room.turnEndTime }); else socket.emit('siraBaskasinda', { idx: room.siraKimde, turnEndTime: room.turnEndTime });
-            io.to(room.id).emit('odaGuncellendi', { players: room.players.map(p => p.isim), hostId: room.hostId, status: room.status });
-            sendSyncedMusic(socket, room); 
-        } else {
-            if (!existingPlayer && room.players.length >= 4) return socket.emit('hata', 'Oda dolu.');
-            if (!existingPlayer) room.players.push({ playerId: u.playerId, socketId: socket.id, isim: u.isim, connected: true, el: [], perAcmisMi: false, ciftAcmisMi: false, turnState: {}, cezalar: 0 }); else { existingPlayer.socketId = socket.id; existingPlayer.connected = true; }
-            socket.join(roomId); io.to(roomId).emit('odaGuncellendi', { players: room.players.map(p => p.isim), hostId: room.hostId, status: room.status }); io.emit('hubGuncelle', getPublicRooms());
-            sendSyncedMusic(socket, room);
+    socket.on('isimDegistir', (yeniIsim) => {
+        if(!yeniIsim || !yeniIsim.trim()) return;
+        if(users[socket.id]) users[socket.id].isim = yeniIsim.trim();
+        for (let rId in rooms) {
+            let room = rooms[rId]; let changed = false;
+            for(let i=0; i<4; i++){ if(room.players[i] && room.players[i].socketId === socket.id) { room.players[i].isim = users[socket.id].isim; changed = true; } }
+            let spec = room.spectators.find(s => s.socketId === socket.id); if (spec) { spec.isim = users[socket.id].isim; changed = true; }
+            if (changed) broadcastRoom(room);
         }
     });
 
-    socket.on('sarkiAraEkle', async (sarkiIsmi) => {
+    socket.on('kimlikBildir', ({ playerId, isim }) => {
+        users[socket.id] = { playerId, isim }; let activeRoom = null;
+        for (let rId in rooms) { 
+            let pIdx = rooms[rId].players.findIndex(p => p && p.playerId === playerId);
+            if (pIdx !== -1) { rooms[rId].players[pIdx].socketId = socket.id; rooms[rId].players[pIdx].connected = true; rooms[rId].players[pIdx].isim = isim; activeRoom = rooms[rId]; break; } 
+            let spec = rooms[rId].spectators.find(s => s && s.playerId === playerId);
+            if (spec) { spec.socketId = socket.id; spec.isim = isim; activeRoom = rooms[rId]; break; }
+        }
+        if (activeRoom) {
+            socket.join(activeRoom.id); let benimIndex = activeRoom.players.findIndex(p => p && p.playerId === playerId);
+            if (activeRoom.status === 'playing' && benimIndex !== -1) {
+                socket.emit('reconnectData', { istaka: activeRoom.players[benimIndex].el, gosterge: activeRoom.globalOyun.gosterge, okey: activeRoom.globalOyun.okey, kalanTas: activeRoom.globalOyun.deck.length, benimIndex: benimIndex, isimler: activeRoom.players.map(p => p?p.isim:"Boş"), yerdekiTaslar: activeRoom.yerdekiTaslar, ortayaAcilanTumPerler: activeRoom.ortayaAcilanTumPerler, siraKimde: activeRoom.siraKimde, oyunIlkTur: activeRoom.oyunIlkTur });
+                let solIdx = (activeRoom.siraKimde - 1 + 4) % 4;
+                if (activeRoom.siraKimde === benimIndex) socket.emit('siraSende', { soldanGelenTas: activeRoom.yerdekiTaslar[solIdx], ilkTurMu: (activeRoom.oyunIlkTur && benimIndex === 0), turnEndTime: activeRoom.turnEndTime }); else socket.emit('siraBaskasinda', { idx: activeRoom.siraKimde, turnEndTime: activeRoom.turnEndTime });
+            }
+            broadcastRoom(activeRoom); sendSyncedMusic(socket, activeRoom); 
+        } else { socket.emit('hubGoster', getPublicRooms()); }
+    });
+
+    socket.on('odaOlustur', (ayarlar) => {
+        let u = users[socket.id]; if(!u) return; let roomId = 'room_' + Date.now();
+        let rName = ayarlar.odaAdi || `${u.isim}'in Masası`; rName = rName.substring(0, 20);
+        let newRoom = createRoom(roomId, rName, u.playerId, ayarlar);
+        newRoom.spectators.push({ playerId: u.playerId, socketId: socket.id, isim: u.isim });
+        rooms[roomId] = newRoom; socket.join(roomId); broadcastRoom(newRoom); io.emit('hubGuncelle', getPublicRooms());
+    });
+
+    socket.on('ayarlariGuncelle', (ayarlar) => {
         let room = getRoomBySocket(socket.id); let u = users[socket.id];
-        if (!room || !u || !sarkiIsmi.trim()) return;
+        if (room && room.hostId === u.playerId && room.status === 'waiting') {
+            room.settings = ayarlar; room.name = (ayarlar.odaAdi || room.name).substring(0, 20);
+            broadcastRoom(room); socket.emit('bilgi', 'Oda ayarları güncellendi.');
+        }
+    });
+
+    socket.on('odayaKatil', (roomId) => {
+        let room = rooms[roomId]; let u = users[socket.id]; if (!room || !u) return socket.emit('hata', 'Oda bulunamadı.');
+        let pIdx = room.players.findIndex(p => p && p.playerId === u.playerId);
+        if (pIdx !== -1) { room.players[pIdx].socketId = socket.id; room.players[pIdx].connected = true; } 
+        else { let spec = room.spectators.find(s => s.playerId === u.playerId); if (!spec) room.spectators.push({ playerId: u.playerId, socketId: socket.id, isim: u.isim }); else spec.socketId = socket.id; }
+        socket.join(roomId); broadcastRoom(room); sendSyncedMusic(socket, room);
+    });
+
+    socket.on('otur', (seatIdx) => {
+        let room = getRoomBySocket(socket.id); let u = users[socket.id]; if (!room || !u || room.status !== 'waiting') return;
+        for(let i=0; i<4; i++){ if(room.players[i] && room.players[i].playerId === u.playerId) room.players[i] = null; }
+        room.spectators = room.spectators.filter(s => s.playerId !== u.playerId);
+        if (room.players[seatIdx] === null) { room.players[seatIdx] = { playerId: u.playerId, socketId: socket.id, isim: u.isim, connected: true, el: [], perAcmisMi: false, ciftAcmisMi: false, turnState: {}, cezalar: 0 }; } 
+        else { room.spectators.push({ playerId: u.playerId, socketId: socket.id, isim: u.isim }); socket.emit('hata', 'Bu koltuk dolu!'); }
+        broadcastRoom(room); io.emit('hubGuncelle', getPublicRooms());
+    });
+
+    socket.on('sarkiAraEkle', async (sarkiIsmi) => {
+        let room = getRoomBySocket(socket.id); let u = users[socket.id]; if (!room || !u || !sarkiIsmi.trim()) return;
         try {
-            const results = await ytSearch(sarkiIsmi);
-            const video = results.videos.length > 0 ? results.videos[0] : null;
+            const results = await ytSearch(sarkiIsmi); const video = results.videos.length > 0 ? results.videos[0] : null;
             if (video) {
                 let songObj = { id: video.videoId, title: video.title, duration: video.timestamp, ekleyen: u.isim };
-                room.music.queue.push(songObj);
-                io.to(room.id).emit('yeniChatMesaji', { isim: '🎵 DJ Area51', mesaj: `"${songObj.title}" sıraya eklendi!`, type: 'system' });
+                room.music.queue.push(songObj); io.to(room.id).emit('yeniChatMesaji', { isim: '🎵 DJ Area51', mesaj: `"${songObj.title}" sıraya eklendi!`, type: 'system' });
                 if (!room.music.currentSong) playNextSong(room);
             } else { socket.emit('hata', 'Şarkı bulunamadı.'); }
         } catch(err) { socket.emit('hata', 'Şarkı aranırken bir sorun oluştu.'); }
     });
-
     socket.on('sarkiAtlaOy', () => {
-        let room = getRoomBySocket(socket.id); let u = users[socket.id];
-        if (!room || !u || !room.music.currentSong) return;
+        let room = getRoomBySocket(socket.id); let u = users[socket.id]; if (!room || !u || !room.music.currentSong) return;
         if (!room.music.skipVotes.includes(u.playerId)) {
-            room.music.skipVotes.push(u.playerId);
-            let requiredVotes = Math.ceil(room.players.length / 2);
-            if (room.music.skipVotes.length >= requiredVotes) {
-                io.to(room.id).emit('yeniChatMesaji', { isim: '🎵 DJ Area51', mesaj: 'Çoğunluk sağlandı, şarkı atlanıyor ⏭️', type: 'system' });
-                playNextSong(room);
-            } else {
-                io.to(room.id).emit('music_voteUpdate', { current: room.music.skipVotes.length, required: requiredVotes });
-            }
+            room.music.skipVotes.push(u.playerId); let requiredVotes = Math.ceil(room.players.filter(p=>p!==null).length / 2);
+            if (room.music.skipVotes.length >= requiredVotes) { io.to(room.id).emit('yeniChatMesaji', { isim: '🎵 DJ Area51', mesaj: 'Çoğunluk sağlandı, şarkı atlanıyor ⏭️', type: 'system' }); playNextSong(room); } 
+            else { io.to(room.id).emit('music_voteUpdate', { current: room.music.skipVotes.length, required: requiredVotes }); }
         }
     });
-
-    socket.on('sarkiBittiOtoGecis', () => {
-        let room = getRoomBySocket(socket.id); let u = users[socket.id];
-        if (room && room.hostId === u.playerId) { playNextSong(room); }
-    });
+    socket.on('sarkiBittiOtoGecis', () => { let room = getRoomBySocket(socket.id); let u = users[socket.id]; if (room && room.hostId === u.playerId) { playNextSong(room); } });
 
     socket.on('masadanAyril', () => {
-        let room = getRoomBySocket(socket.id);
+        let room = getRoomBySocket(socket.id); let u = users[socket.id];
         if (room) {
-            if (room.status === 'playing') { let player = room.players.find(p => p.socketId === socket.id); if (player) player.connected = false; socket.leave(room.id); } 
-            else { room.players = room.players.filter(p => p.socketId !== socket.id); socket.leave(room.id); if (room.players.length === 0) delete rooms[room.id]; else { if(room.hostId === users[socket.id].playerId) room.hostId = room.players[0].playerId; io.to(room.id).emit('odaGuncellendi', { players: room.players.map(p => p.isim), hostId: room.hostId, status: room.status }); } }
-            io.emit('hubGuncelle', getPublicRooms()); socket.emit('hubGoster', getPublicRooms());
+            let pIdx = room.players.findIndex(p => p && p.playerId === u.playerId);
+            if (room.status === 'playing' && pIdx !== -1) { room.players[pIdx].connected = false; } 
+            else { 
+                if(pIdx !== -1) room.players[pIdx] = null; 
+                room.spectators = room.spectators.filter(s => s.playerId !== u.playerId);
+                if (room.players.every(p => p === null) && room.spectators.length === 0) delete rooms[room.id]; 
+                else if (room.hostId === u.playerId) { 
+                    let nextHost = room.players.find(p=>p!==null) || room.spectators[0]; 
+                    if(nextHost) room.hostId = nextHost.playerId; 
+                } 
+            }
+            socket.leave(room.id); if(rooms[room.id]) broadcastRoom(rooms[room.id]); io.emit('hubGuncelle', getPublicRooms()); socket.emit('hubGoster', getPublicRooms());
         }
     });
 
@@ -246,16 +265,12 @@ io.on('connection', (socket) => {
     socket.on('oyunuBaslat', () => { 
         let room = getRoomBySocket(socket.id); let u = users[socket.id]; 
         if (room && u && room.hostId === u.playerId) {
-            if (room.players.length === 4) {
-                startGame(room); 
-            } else {
-                socket.emit('hata', 'Oyunu başlatmak için masada 4 kişi olmalısınız!');
-            }
+            if (room.players.filter(p => p !== null).length === 4) { startGame(room); } else { socket.emit('hata', 'Masanın tüm koltukları dolmadan oyun başlatılamaz!'); }
         }
     });
 
     socket.on('ortadanCek', () => {
-        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id);
+        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p && p.socketId === socket.id);
         if (index === room.siraKimde && !room.players[index].turnState.tasCektiMi && room.globalOyun.deck.length > 0) {
             let cekilenTas = room.globalOyun.deck.pop(); room.players[index].el.push(cekilenTas); room.players[index].turnState.tasCektiMi = true; takeSnapshot(room, room.players[index]);
             socket.emit('tasCekildi', cekilenTas); io.to(room.id).emit('desteGuncellendi', room.globalOyun.deck.length);
@@ -263,29 +278,25 @@ io.on('connection', (socket) => {
     });
 
     socket.on('yandanCek', () => {
-        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id); let solIdx = (index - 1 + 4) % 4; let yandakiTas = room.yerdekiTaslar[solIdx];
+        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p && p.socketId === socket.id); let solIdx = (index - 1 + 4) % 4; let yandakiTas = room.yerdekiTaslar[solIdx];
         if (index === room.siraKimde && !room.players[index].turnState.tasCektiMi && yandakiTas) {
-            room.players[index].el.push(yandakiTas); 
-            room.players[index].turnState.tasCektiMi = true;
-            room.players[index].turnState.yandanAlinanTas = yandakiTas; 
+            room.players[index].el.push(yandakiTas); room.players[index].turnState.tasCektiMi = true; room.players[index].turnState.yandanAlinanTas = yandakiTas; 
             if (!room.players[index].perAcmisMi && !room.players[index].ciftAcmisMi) { room.players[index].turnState.elAcmadanYandanAldi = true; }
-            socket.emit('yandanAldinZorunluAc');
-            takeSnapshot(room, room.players[index]); socket.emit('tasCekildi', yandakiTas); room.yerdekiTaslar[solIdx] = null; io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); 
+            socket.emit('yandanAldinZorunluAc'); takeSnapshot(room, room.players[index]); socket.emit('tasCekildi', yandakiTas); room.yerdekiTaslar[solIdx] = null; io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); 
         }
     });
 
     socket.on('yandanAlmaIptal', () => {
-        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id); let pInfo = room.players[index];
+        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p && p.socketId === socket.id); let pInfo = room.players[index];
         if (index === room.siraKimde && pInfo.turnState.yandanAlinanTas) {
-            let solIdx = (index - 1 + 4) % 4; let tas = pInfo.turnState.yandanAlinanTas; 
-            pInfo.el = pInfo.el.filter(t => t.id !== tas.id); room.yerdekiTaslar[solIdx] = tas;
+            let solIdx = (index - 1 + 4) % 4; let tas = pInfo.turnState.yandanAlinanTas; pInfo.el = pInfo.el.filter(t => t.id !== tas.id); room.yerdekiTaslar[solIdx] = tas;
             pInfo.turnState.tasCektiMi = false; pInfo.turnState.yandanAlinanTas = null; pInfo.turnState.elAcmadanYandanAldi = false; pInfo.turnState.snapshot = null; 
             socket.emit('yandanIptalEdildi', tas.id); io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar);
         }
     });
 
     socket.on('tasAt', (atilanTas) => {
-        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id); let pInfo = room.players[index];
+        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p && p.socketId === socket.id); let pInfo = room.players[index];
         if (index === room.siraKimde) {
             if (!pInfo.turnState.tasCektiMi) return socket.emit('hata', 'Taş çekmeden atamazsınız!');
             let yTas = pInfo.turnState.yandanAlinanTas;
@@ -294,12 +305,9 @@ io.on('connection', (socket) => {
             let isOkeyTile = Validator.isOkey(atilanTas, room.globalOyun.okey);
             let isPlayable = room.ortayaAcilanTumPerler.length > 0 && isTilePlayable(atilanTas, room);
 
-            // OKEY ATMA VE İŞLEK TAŞ CEZASI (AYNEN KORUNDU)
-            if (isOkeyTile || isPlayable) {
-                pInfo.cezalar += 101; let sebepMsj = isOkeyTile ? 'yere Okey' : 'işlek taş';
-                io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sebepMsj} attı ve 101 ceza yedi!`, type: 'system' });
-                io.to(room.id).emit('bilgi', `${pInfo.isim}, ${sebepMsj} attığı için ceza yedi.`);
-            }
+            if (pInfo.el.length === 1 && isOkeyTile) { pInfo.el = []; return oyunuBitir(room, index, "Okey Atarak Bitti"); }
+
+            if (isOkeyTile || isPlayable) { pInfo.cezalar += 101; let sebepMsj = isOkeyTile ? 'yere Okey' : 'işlek taş'; io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sebepMsj} attı ve 101 ceza yedi!`, type: 'system' }); io.to(room.id).emit('bilgi', `${pInfo.isim}, ${sebepMsj} attığı için ceza yedi.`); }
 
             pInfo.el = pInfo.el.filter(t => t.id !== atilanTas.id); room.yerdekiTaslar[index] = atilanTas;
             socket.emit('tasAtildiOnay', atilanTas.id); io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); 
@@ -313,7 +321,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('geriToplaTalebi', () => {
-        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id);
+        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p && p.socketId === socket.id);
         if (index !== room.siraKimde) return socket.emit('hata', 'Sıra sizde değil!'); let pInfo = room.players[index];
         if (!pInfo.turnState.snapshot) return socket.emit('hata', 'Önce taş çekmelisiniz veya toplanacak hamle yok.');
         
@@ -321,13 +329,16 @@ io.on('connection', (socket) => {
         pInfo.perAcmisMi = pInfo.turnState.snapshot.perAcmisMi; pInfo.ciftAcmisMi = pInfo.turnState.snapshot.ciftAcmisMi; 
         pInfo.turnState.toplamSeriIsleme = pInfo.turnState.snapshot.toplamSeriIsleme || 0; pInfo.turnState.islenenPerler = {}; 
         
+        if (pInfo.turnState.snapshot.roomMaxSeri !== undefined) room.currentMaxSeri = pInfo.turnState.snapshot.roomMaxSeri;
+        if (pInfo.turnState.snapshot.roomMaxCift !== undefined) room.currentMaxCift = pInfo.turnState.snapshot.roomMaxCift;
+
         if (pInfo.turnState.yandanAlinanTas) socket.emit('yandanAldinZorunluAc');
         socket.emit('geriToplandi', { el: pInfo.el, perler: room.ortayaAcilanTumPerler });
-        io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler);
+        io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler); broadcastRoom(room);
     });
 
     socket.on('seriAcmaTalebi', (gonderilenGruplar) => {
-        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id);
+        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p && p.socketId === socket.id);
         if (index !== room.siraKimde) return; let pInfo = room.players[index];
         
         if (pInfo.ciftAcmisMi && !pInfo.perAcmisMi) return socket.emit('hata', 'Çift açan oyuncu yeni seri açamaz, serilere sadece taş işleyebilir!');
@@ -337,128 +348,146 @@ io.on('connection', (socket) => {
         let isProcessing = isAlreadyOpened && runsOnTable;
 
         let sonuc = Validator.calculate101Score(gonderilenGruplar, room.globalOyun.okey, isProcessing);
+        let reqSeri = room.settings.isKatlamali ? room.currentMaxSeri + 1 : 101;
+
+        if (!isProcessing && sonuc.success && sonuc.score < reqSeri) return socket.emit('hata', `Katlamalı Mod aktif! Açmak için en az ${reqSeri} puan gerekiyor.`);
+
         if (sonuc.success || pInfo.perAcmisMi) {
             let ilkKezAciliyor = !isAlreadyOpened; 
-
             let idler = []; gonderilenGruplar.forEach(grup => { room.ortayaAcilanTumPerler.push(Validator.sortGroup(grup, room.globalOyun.okey)); grup.forEach(t => idler.push(t.id)); });
 
-            // YENİ: YANDAN ALINAN TAŞLA İLK DEFA SERİ AÇMA CEZASI (x10)
             if (ilkKezAciliyor && pInfo.turnState.elAcmadanYandanAldi && pInfo.turnState.yandanAlinanTas) {
                 if (idler.includes(pInfo.turnState.yandanAlinanTas.id)) {
                     let solIdx = (index - 1 + 4) % 4; let atanOyuncu = room.players[solIdx];
-                    let yTas = pInfo.turnState.yandanAlinanTas;
-                    let tasDegeri = Validator.getEffectiveTile(yTas, room.globalOyun.okey).value;
-                    let cezaPuani = tasDegeri * 10;
-                    atanOyuncu.cezalar += cezaPuani;
+                    let effYtas = Validator.getEffectiveTile(pInfo.turnState.yandanAlinanTas, room.globalOyun.okey);
+                    let tasDegeri = effYtas.isSahte ? room.globalOyun.okey.value : effYtas.value;
+                    let cezaPuani = tasDegeri * 10; atanOyuncu.cezalar += cezaPuani;
                     io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${atanOyuncu.isim}, ${pInfo.isim}'e el açtıran taşı (${tasDegeri}) attığı için ${cezaPuani} ceza yedi!`, type: 'system' });
                 }
             }
 
-            pInfo.perAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
-            if (ilkKezAciliyor) io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, seri el açtı.`, type: 'system' });
+            if (ilkKezAciliyor) {
+                pInfo.perAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
+                if (room.settings.isKatlamali) room.currentMaxSeri = Math.max(room.currentMaxSeri, sonuc.score);
+                io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, seri el açtı.`, type: 'system' });
+            }
 
-            pInfo.el = pInfo.el.filter(t => !idler.includes(t.id));
-            checkYandanAlinanTas(pInfo, socket);
+            pInfo.el = pInfo.el.filter(t => !idler.includes(t.id)); checkYandanAlinanTas(pInfo, socket);
             socket.emit('perAcildiOnay', idler); io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler); 
-            if (pInfo.el.length === 0) oyunuBitir(room, index, "El Bitti");
+            broadcastRoom(room); if (pInfo.el.length === 0) oyunuBitir(room, index, "El Bitti");
         } else { socket.emit('hata', sonuc.message); }
     });
 
     socket.on('ciftAcmaTalebi', (gonderilenGruplar) => {
-        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id);
+        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p && p.socketId === socket.id);
         if (index !== room.siraKimde) return; let pInfo = room.players[index];
 
-        let isAlreadyOpened = pInfo.perAcmisMi || pInfo.ciftAcmisMi;
         let pairsOnTable = room.ortayaAcilanTumPerler.some(p => p.length === 2);
-        let isProcessing = isAlreadyOpened && pairsOnTable;
+        if (pInfo.perAcmisMi && !pInfo.ciftAcmisMi && !pairsOnTable) return socket.emit('hata', 'Masada çift açan kimse olmadığı için çift işleyemezsiniz!');
 
-        if (pInfo.perAcmisMi && !pairsOnTable) return socket.emit('hata', 'Masada çift açılmadığı için çift işleyemezsiniz!');
+        let isAlreadyOpened = pInfo.perAcmisMi || pInfo.ciftAcmisMi;
+        let isProcessing = isAlreadyOpened;
 
+        let reqCift = room.settings.isKatlamali ? room.currentMaxCift + 1 : 5;
         let sonuc = Validator.calculatePairs(gonderilenGruplar, room.globalOyun.okey, isProcessing);
+        
+        if (!isProcessing && sonuc.success && sonuc.pairCount < reqCift) return socket.emit('hata', `Katlamalı Mod aktif! Açmak için en az ${reqCift} çift gerekiyor.`);
+
         if (sonuc.success) {
             let ilkKezAciliyor = !isAlreadyOpened; 
-
             let idler = []; gonderilenGruplar.forEach(grup => { room.ortayaAcilanTumPerler.push(Validator.sortGroup(grup, room.globalOyun.okey)); grup.forEach(t => idler.push(t.id)); });
             
-            // YENİ: YANDAN ALINAN TAŞLA İLK DEFA ÇİFT AÇMA CEZASI (x20)
             if (ilkKezAciliyor && pInfo.turnState.elAcmadanYandanAldi && pInfo.turnState.yandanAlinanTas) {
                 if (idler.includes(pInfo.turnState.yandanAlinanTas.id)) {
                     let solIdx = (index - 1 + 4) % 4; let atanOyuncu = room.players[solIdx];
-                    let yTas = pInfo.turnState.yandanAlinanTas;
-                    let tasDegeri = Validator.getEffectiveTile(yTas, room.globalOyun.okey).value;
-                    let cezaPuani = tasDegeri * 20;
-                    atanOyuncu.cezalar += cezaPuani;
+                    let effYtas = Validator.getEffectiveTile(pInfo.turnState.yandanAlinanTas, room.globalOyun.okey);
+                    let tasDegeri = effYtas.isSahte ? room.globalOyun.okey.value : effYtas.value;
+                    let cezaPuani = tasDegeri * 20; atanOyuncu.cezalar += cezaPuani;
                     io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${atanOyuncu.isim}, ${pInfo.isim}'e çift açtıran taşı (${tasDegeri}) attığı için ${cezaPuani} ceza yedi!`, type: 'system' });
                 }
             }
 
-            pInfo.ciftAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
-            if (ilkKezAciliyor) io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, çift el açtı.`, type: 'system' });
+            if (ilkKezAciliyor) {
+                pInfo.ciftAcmisMi = true; pInfo.turnState.elAcmadanYandanAldi = false; 
+                if (room.settings.isKatlamali) room.currentMaxCift = Math.max(room.currentMaxCift, sonuc.pairCount);
+                io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, çift el açtı.`, type: 'system' });
+            }
             
-            pInfo.el = pInfo.el.filter(t => !idler.includes(t.id));
-            checkYandanAlinanTas(pInfo, socket);
+            pInfo.el = pInfo.el.filter(t => !idler.includes(t.id)); checkYandanAlinanTas(pInfo, socket);
             socket.emit('perAcildiOnay', idler); io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler); 
-            if (pInfo.el.length === 0) oyunuBitir(room, index, "El Bitti");
+            broadcastRoom(room); if (pInfo.el.length === 0) oyunuBitir(room, index, "El Bitti");
         } else { socket.emit('hata', sonuc.message); }
     });
 
     socket.on('yereIsleTalebi', ({ tasId, perIndex }) => {
-        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p.socketId === socket.id);
+        let room = getRoomBySocket(socket.id); if(!room) return; let index = room.players.findIndex(p => p && p.socketId === socket.id);
         if (index !== room.siraKimde) return; let pInfo = room.players[index];
         if (!pInfo.perAcmisMi && !pInfo.ciftAcmisMi) return socket.emit('hata', 'Önce elinizi açın!');
         
-        let hedefPer = room.ortayaAcilanTumPerler[perIndex];
-        let islenecekTas = pInfo.el.find(t => t.id === parseInt(tasId)); 
+        let hedefPer = room.ortayaAcilanTumPerler[perIndex]; let islenecekTas = pInfo.el.find(t => t.id === parseInt(tasId)); 
         if (!islenecekTas || !hedefPer) return;
 
-        if (hedefPer.length === 2) return socket.emit('hata', "Çiftlere tek taş işlenemez! Çift işlemek için 'Çift Aç' kullanın.");
-
-        if (pInfo.ciftAcmisMi && !pInfo.perAcmisMi && hedefPer.length > 2) {
-            if ((pInfo.turnState.toplamSeriIsleme || 0) >= 2) return socket.emit('hata', 'Çift açanlar bir turda serilere en fazla 2 taş işleyebilir!');
-        }
-
-        let islemBasarili = false, okeyKazanildi = false, kazanilanOkeyTas = null;
-        let gameOkey = room.globalOyun.okey;
+        let islemBasarili = false, okeyKazanildi = false, kazanilanOkeyTas = null; let gameOkey = room.globalOyun.okey;
         let okeyIndex = hedefPer.findIndex(t => Validator.isOkey(t, gameOkey));
-        
-        if (okeyIndex !== -1) {
-            let rep = getOkeyRepresentedTile(hedefPer, okeyIndex, gameOkey);
-            let eNew = Validator.getEffectiveTile(islenecekTas, gameOkey);
-            let canSteal = false;
-            if (rep && rep.isSet) { if (eNew.value === rep.value && !rep.presentColors.includes(eNew.color)) { if (rep.presentColors.length === 3) canSteal = true; } } 
-            else if (rep) { if (eNew.color === rep.color && eNew.value === rep.value) canSteal = true; }
 
-            if (canSteal) {
-                let testGrup = [...hedefPer]; let okeyTas = testGrup.splice(okeyIndex, 1, islenecekTas)[0]; 
-                islemBasarili = true; okeyKazanildi = true; kazanilanOkeyTas = okeyTas; room.ortayaAcilanTumPerler[perIndex] = testGrup;
+        if (hedefPer.length === 2) {
+            if (okeyIndex !== -1) {
+                let norm = hedefPer.find(x => !Validator.isOkey(x, gameOkey)) || hedefPer[0];
+                let eNew = Validator.getEffectiveTile(islenecekTas, gameOkey); let eNorm = Validator.getEffectiveTile(norm, gameOkey);
+                if (eNew.color === eNorm.color && eNew.value === eNorm.value) {
+                    let testGrup = [...hedefPer]; let okeyTas = testGrup.splice(okeyIndex, 1, islenecekTas)[0];
+                    islemBasarili = true; okeyKazanildi = true; kazanilanOkeyTas = okeyTas; room.ortayaAcilanTumPerler[perIndex] = testGrup;
+                } else { return socket.emit('hata', "Çiftlere sadece Okey'in yerine geçen taşı işleyebilirsiniz!"); }
+            } else { return socket.emit('hata', "Tamamlanmış çiftlere dışarıdan taş işlenemez!"); }
+        } 
+        else {
+            if (pInfo.ciftAcmisMi && !pInfo.perAcmisMi && hedefPer.length > 2) { if ((pInfo.turnState.toplamSeriIsleme || 0) >= 2) return socket.emit('hata', 'Çift açanlar bir turda serilere en fazla 2 taş işleyebilir!'); }
+            
+            if (okeyIndex !== -1) {
+                let rep = getOkeyRepresentedTile(hedefPer, okeyIndex, gameOkey); let eNew = Validator.getEffectiveTile(islenecekTas, gameOkey); let canSteal = false;
+                if (rep && rep.isSet) { if (eNew.value === rep.value && !rep.presentColors.includes(eNew.color)) { if (rep.presentColors.length === 3) canSteal = true; } } 
+                else if (rep) { if (eNew.color === rep.color && eNew.value === rep.value) canSteal = true; }
+
+                if (canSteal) {
+                    let testGrup = [...hedefPer]; let okeyTas = testGrup.splice(okeyIndex, 1, islenecekTas)[0]; 
+                    islemBasarili = true; okeyKazanildi = true; kazanilanOkeyTas = okeyTas; room.ortayaAcilanTumPerler[perIndex] = testGrup;
+                }
             }
-        }
 
-        if (!islemBasarili) {
-            let newGrup = tryAttachTileStrict(hedefPer, islenecekTas, gameOkey);
-            if (newGrup !== null) { islemBasarili = true; room.ortayaAcilanTumPerler[perIndex] = newGrup; }
+            if (!islemBasarili) { let newGrup = tryAttachTileStrict(hedefPer, islenecekTas, gameOkey); if (newGrup !== null) { islemBasarili = true; room.ortayaAcilanTumPerler[perIndex] = newGrup; } }
         }
 
         if (islemBasarili) {
             pInfo.el = pInfo.el.filter(t => t.id !== islenecekTas.id); 
-            if (pInfo.ciftAcmisMi && !pInfo.perAcmisMi && hedefPer.length > 2) { pInfo.turnState.toplamSeriIsleme = (pInfo.turnState.toplamSeriIsleme || 0) + 1; }
+            if (hedefPer.length > 2 && pInfo.ciftAcmisMi && !pInfo.perAcmisMi) { pInfo.turnState.toplamSeriIsleme = (pInfo.turnState.toplamSeriIsleme || 0) + 1; }
 
             checkYandanAlinanTas(pInfo, socket);
             socket.emit('islemeBasarili', islenecekTas.id); if (okeyKazanildi) { pInfo.el.push(kazanilanOkeyTas); socket.emit('okeyKazanildi', kazanilanOkeyTas); } io.to(room.id).emit('masaGuncellendi', room.ortayaAcilanTumPerler);
             if (pInfo.el.length === 0) oyunuBitir(room, index, "İşleyerek Bitti");
-        } else { socket.emit('hata', 'Taş bu gruba işlenemez (Okeyin yerine tam uymuyor veya seri dışı)!'); }
+        } else { socket.emit('hata', 'Taş bu gruba işlenemez!'); }
     });
 
-    socket.on('disconnect', () => { let room = getRoomBySocket(socket.id); if (room) { let player = room.players.find(p => p.socketId === socket.id); if (player) player.connected = false; } });
+    socket.on('sonrakiEl', () => {
+        let room = getRoomBySocket(socket.id); let u = users[socket.id];
+        if (room && room.hostId === u.playerId && room.status === 'waiting') {
+            // DÜZELTME: Sonraki ele geçildiğinde sınırları zorla sıfırla.
+            room.currentMaxSeri = 100; room.currentMaxCift = 4;
+            startGame(room);
+        }
+    });
+
+    socket.on('disconnect', () => { let room = getRoomBySocket(socket.id); if (room) { let player = room.players.find(p => p && p.socketId === socket.id); if (player) player.connected = false; } });
 });
 
 function startGame(room) {
     room.status = 'playing'; room.globalOyun = new Okey101(); room.ortayaAcilanTumPerler = []; room.yerdekiTaslar = { 0: null, 1: null, 2: null, 3: null };
+    room.currentMaxSeri = 100; room.currentMaxCift = 4;
+    
     for(let i=0; i<4; i++) { room.players[i].el = room.globalOyun.players[`player${i+1}`]; room.players[i].perAcmisMi = false; room.players[i].ciftAcmisMi = false; room.players[i].cezalar = 0; }
     let isimListesi = room.players.map(o => o.isim);
-    room.players.forEach((oyuncu, index) => { io.to(oyuncu.socketId).emit('oyunBasladi', { istaka: oyuncu.el, gosterge: room.globalOyun.gosterge, okey: room.globalOyun.okey, kalanTas: room.globalOyun.deck.length, benimIndex: index, isimler: isimListesi }); });
-    io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); io.to(room.id).emit('odaGuncellendi', { players: room.players.map(p => p.isim), hostId: room.hostId, status: room.status });
-    
+    room.players.forEach((oyuncu, index) => { io.to(oyuncu.socketId).emit('oyunBasladi', { istaka: oyuncu.el, gosterge: room.globalOyun.gosterge, okey: room.globalOyun.okey, kalanTas: room.globalOyun.deck.length, benimIndex: index, isimler: isimListesi, maxSeri: room.currentMaxSeri, maxCift: room.currentMaxCift }); });
+    io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); broadcastRoom(room);
+    if(room.music.currentSong) io.to(room.id).emit('music_play', room.music.currentSong);
     room.oyunIlkTur = true; room.siraKimde = 0; sirayiGecir(room, 0); io.emit('hubGuncelle', getPublicRooms());
 }
 
@@ -468,14 +497,9 @@ function forceAutoPlay(room, playerIndex) {
     io.to(pInfo.socketId).emit('istakaGuncellendi', pInfo.el);
     if (pInfo.el.length > 0) {
         let randIdx = Math.floor(Math.random() * pInfo.el.length); let atilanTas = pInfo.el.splice(randIdx, 1)[0];
+        if (pInfo.el.length === 0 && Validator.isOkey(atilanTas, room.globalOyun.okey)) return oyunuBitir(room, playerIndex, "Okey Atarak Bitti");
         let isOkeyTile = Validator.isOkey(atilanTas, room.globalOyun.okey); let isPlayable = room.ortayaAcilanTumPerler.length > 0 && isTilePlayable(atilanTas, room);
-        
-        if (isOkeyTile || isPlayable) {
-            pInfo.cezalar += 101; let sebepMsj = isOkeyTile ? 'yere Okey' : 'işlek taş'; 
-            io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sebepMsj} attı ve 101 ceza yedi!`, type: 'system' }); 
-            io.to(room.id).emit('bilgi', `${pInfo.isim}, ${sebepMsj} attığı için ceza yedi.`);
-        }
-        
+        if (isOkeyTile || isPlayable) { pInfo.cezalar += 101; let sebepMsj = isOkeyTile ? 'yere Okey' : 'işlek taş'; io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim}, ${sebepMsj} attı ve 101 ceza yedi!`, type: 'system' }); io.to(room.id).emit('bilgi', `${pInfo.isim}, ${sebepMsj} attığı için ceza yedi.`); }
         room.yerdekiTaslar[playerIndex] = atilanTas; io.to(pInfo.socketId).emit('istakaGuncellendi', pInfo.el); io.to(room.id).emit('coplerGuncellendi', room.yerdekiTaslar); io.to(room.id).emit('yeniChatMesaji', { isim: 'SİSTEM', mesaj: `${pInfo.isim} süresi dolduğu için otomatik oynadı.`, type: 'system' });
         if (room.siraKimde === 0 && room.oyunIlkTur) room.oyunIlkTur = false;
         if (pInfo.el.length === 0) return oyunuBitir(room, playerIndex, "El Bitti"); if (room.globalOyun.deck.length === 0) return oyunuBitir(room, -1, "Deste Bitti"); 
@@ -486,10 +510,13 @@ function forceAutoPlay(room, playerIndex) {
 function sirayiGecir(room, yeniSiraIndex) {
     if (room.turnTimer) clearTimeout(room.turnTimer); let turnDuration = 60000; room.turnEndTime = Date.now() + turnDuration;
     room.players.forEach((oyuncu, idx) => {
-        let ilkElBasiMi = (room.oyunIlkTur && idx === 0); oyuncu.turnState = { tasCektiMi: ilkElBasiMi, elAcmadanYandanAldi: false, yandanAlinanTas: null, islenenPerler: {}, toplamSeriIsleme: 0 };
-        if (ilkElBasiMi) takeSnapshot(room, oyuncu);
-        if (oyuncu.connected) {
-            if (idx === yeniSiraIndex) { let solIdx = (yeniSiraIndex - 1 + 4) % 4; io.to(oyuncu.socketId).emit('siraSende', { soldanGelenTas: room.yerdekiTaslar[solIdx], ilkTurMu: ilkElBasiMi, turnEndTime: room.turnEndTime }); } else { io.to(oyuncu.socketId).emit('siraBaskasinda', { idx: yeniSiraIndex, turnEndTime: room.turnEndTime }); }
+        let ilkElBasiMi = (room.oyunIlkTur && idx === 0);
+        if (oyuncu) {
+            oyuncu.turnState = { tasCektiMi: ilkElBasiMi, elAcmadanYandanAldi: false, yandanAlinanTas: null, islenenPerler: {}, toplamSeriIsleme: 0 };
+            if (ilkElBasiMi) takeSnapshot(room, oyuncu);
+            if (oyuncu.connected) {
+                if (idx === yeniSiraIndex) { let solIdx = (yeniSiraIndex - 1 + 4) % 4; io.to(oyuncu.socketId).emit('siraSende', { soldanGelenTas: room.yerdekiTaslar[solIdx], ilkTurMu: ilkElBasiMi, turnEndTime: room.turnEndTime }); } else { io.to(oyuncu.socketId).emit('siraBaskasinda', { idx: yeniSiraIndex, turnEndTime: room.turnEndTime }); }
+            }
         }
     });
     room.turnTimer = setTimeout(() => { forceAutoPlay(room, yeniSiraIndex); }, turnDuration);
@@ -497,26 +524,58 @@ function sirayiGecir(room, yeniSiraIndex) {
 
 function oyunuBitir(room, bitirenIndex, sebep) {
     if (room.turnTimer) clearTimeout(room.turnTimer); room.status = 'waiting'; 
-    let skorTablosu = room.players.map((oyuncu, i) => {
-        let sonuc = { isim: oyuncu.isim, puan: 0, durum: "" }; let islekCezasi = oyuncu.cezalar || 0;
-        if (i === bitirenIndex) { sonuc.puan = -101 + islekCezasi; sonuc.durum = "Bitirdi"; } 
-        else if (!oyuncu.perAcmisMi && !oyuncu.ciftAcmisMi) { sonuc.puan = 202 + islekCezasi; sonuc.durum = "Açamadı"; } 
-        else { 
-            let elCeza = 0; oyuncu.el.forEach(t => { elCeza += t.value; });
-            if (oyuncu.ciftAcmisMi && !oyuncu.perAcmisMi) { elCeza *= 2; sonuc.durum = "Çift Açtı"; } else { sonuc.durum = "Seri Açtı"; }
-            sonuc.puan = elCeza + islekCezasi; 
+    let roundScores = [0, 0, 0, 0]; let playerStates = ["", "", "", ""];
+    
+    room.players.forEach((oyuncu, i) => {
+        if (!oyuncu) return;
+        let islekCezasi = oyuncu.cezalar || 0;
+        if (i === bitirenIndex) { 
+            roundScores[i] = (sebep === "Okey Atarak Bitti" ? -202 : -101) + islekCezasi; 
+            playerStates[i] = "Bitirdi"; 
+            if (sebep === "Okey Atarak Bitti") { room.players.forEach((diger, j) => { if(j !== bitirenIndex && diger) roundScores[j] += 808; }); }
+        } else { 
+            if (sebep === "Okey Atarak Bitti") {
+                playerStates[i] = oyuncu.ciftAcmisMi ? "Çift Açtı" : (oyuncu.perAcmisMi ? "Seri Açtı" : "Açamadı");
+                roundScores[i] += islekCezasi; 
+            } else {
+                if (!oyuncu.perAcmisMi && !oyuncu.ciftAcmisMi) { 
+                    roundScores[i] += 202 + islekCezasi; playerStates[i] = "Açamadı"; 
+                } else { 
+                    let elCeza = 0; oyuncu.el.forEach(t => { elCeza += t.value; });
+                    if (oyuncu.ciftAcmisMi && !oyuncu.perAcmisMi) { elCeza *= 2; playerStates[i] = "Çift Açtı"; } 
+                    else { playerStates[i] = "Seri Açtı"; }
+                    roundScores[i] += elCeza + islekCezasi; 
+                }
+            }
         }
-        return sonuc;
     });
 
-    let kazananIndex = bitirenIndex;
-    if (bitirenIndex === -1) {
-        let minScore = Math.min(...skorTablosu.map(s => s.puan)); let kazananlar = skorTablosu.filter(s => s.puan === minScore);
-        kazananIndex = (minScore === 202 && kazananlar.length === 4) ? -1 : skorTablosu.findIndex(s => s.puan === minScore);
+    let viewScores = [];
+    if (room.settings.isEsli) {
+        let teamA = roundScores[0] + roundScores[2]; let teamB = roundScores[1] + roundScores[3];
+        room.teamScores.A += teamA; room.teamScores.B += teamB;
+        room.overallScores[0] += teamA; room.overallScores[2] += teamA; 
+        room.overallScores[1] += teamB; room.overallScores[3] += teamB;
+        for(let i=0; i<4; i++) {
+            if(room.players[i]) viewScores.push({ isim: room.players[i].isim, puan: roundScores[i], durum: playerStates[i], team: (i%2===0?"A Takımı":"B Takımı"), overall: room.overallScores[i] });
+        }
+    } else {
+        for(let i=0; i<4; i++) { 
+            if(room.players[i]) {
+                room.overallScores[i] += roundScores[i]; 
+                viewScores.push({ isim: room.players[i].isim, puan: roundScores[i], durum: playerStates[i], team: null, overall: room.overallScores[i] });
+            }
+        }
     }
-    skorTablosu.sort((a,b) => a.puan - b.puan);
-    io.to(room.id).emit('oyunBitti', { kazanan: kazananIndex, skorlar: skorTablosu, sebep: sebep });
-    io.to(room.id).emit('odaGuncellendi', { players: room.players.map(p => p.isim), hostId: room.hostId, status: room.status }); io.emit('hubGuncelle', getPublicRooms());
+
+    let isLastRound = room.currentRound >= room.settings.rounds;
+    if (!isLastRound) room.currentRound++;
+
+    viewScores.sort((a,b) => a.puan - b.puan);
+    let kazananIsim = (bitirenIndex !== -1 && room.players[bitirenIndex]) ? room.players[bitirenIndex].isim : "Bilinmiyor";
+
+    io.to(room.id).emit('oyunBitti', { kazananAdi: kazananIsim, kazanan: bitirenIndex, skorlar: viewScores, sebep: sebep, isLastRound: isLastRound, isEsli: room.settings.isEsli });
+    broadcastRoom(room); io.emit('hubGuncelle', getPublicRooms());
 }
 
 const PORT = 3000; server.listen(PORT, () => console.log(`E-Spor Area51 Aktif: http://localhost:${PORT}`));

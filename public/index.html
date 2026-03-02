@@ -8,11 +8,14 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
     <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
     <script>MobileDragDrop.polyfill({dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride});</script>
+    <script src="https://www.youtube.com/iframe_api"></script>
 
     <style>
         body { background-color: #050505; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; touch-action: pan-x pan-y;}
         
-        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        #top-bar { position: absolute; top: 15px; right: 20px; z-index: 1005; }
+        
+        #toast-container { position: fixed; top: 60px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .toast { background: rgba(10, 10, 10, 0.95); border-left: 4px solid #d4af37; color: #ecf0f1; padding: 12px 20px; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.8); font-size: 14px; min-width: 250px; animation: slideIn 0.3s forwards, fadeOut 0.5s 3.5s forwards; font-weight: bold;}
         .toast.error { border-left-color: #e74c3c; }
         .toast.info { border-left-color: #3498db; }
@@ -28,7 +31,7 @@
         .tam-ekran { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .kutu { background: #1e1e1e; padding: 40px; border-radius: 15px; text-align: center; border: 2px solid #d4af37; box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); width: 400px; max-width: 90vw;}
         .kutu h1, .kutu h2 { margin-top: 0; color: #d4af37; font-weight: 300; letter-spacing: 2px;}
-        .kutu input { width: 80%; padding: 12px; font-size: 18px; border-radius: 8px; border: 1px solid #444; background: #111; color: white; margin-bottom: 20px; outline: none; text-align: center; font-weight: bold;}
+        .kutu input, .kutu select { width: 80%; padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #444; background: #111; color: white; margin-bottom: 20px; outline: none; text-align: center; font-weight: bold;}
         #oda-listesi { margin-top: 20px; text-align: left; max-height: 200px; overflow-y: auto; }
         .oda-satiri { background: #2a2a2a; padding: 10px; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #d4af37;}
         
@@ -37,6 +40,13 @@
         .btn-gold:disabled { background: #555; color: #888; cursor: not-allowed; box-shadow: none;}
         .btn-kirmizi { background: #c0392b; color: white; border: none; padding: 6px 15px; font-size: 13px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.5);}
         .btn-kirmizi:hover { background: #a53125; }
+
+        .koltuk-map { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .koltuk { background: #0a0a0a; border: 2px dashed #444; padding: 20px; border-radius: 10px; cursor: pointer; font-weight: bold; color: #aaa; transition: 0.3s; }
+        .koltuk:hover { border-color: #d4af37; color: #d4af37; }
+        .koltuk.dolu { background: #222; border-style: solid; border-color: #d4af37; color: white; cursor: default; }
+        .koltuk.dolu-teamA { border-color: #3498db; }
+        .koltuk.dolu-teamB { border-color: #e74c3c; }
 
         #oyun-wrapper { display: none; justify-content: flex-start; align-items: center; width: 100vw; height: 100vh; gap: 20px; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; flex-direction: column; padding: 20px 0;}
 
@@ -48,10 +58,8 @@
         }
         #masa-container::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border: 1px solid rgba(255,255,255,0.05); border-radius: 30px; pointer-events: none;}
         .sira-bende-border { border-color: #2ecc71 !important; box-shadow: inset 0 0 80px rgba(0,0,0,0.9), 0 0 50px rgba(46, 204, 113, 0.4) !important; }
-        .aktif-sira-isim { box-shadow: 0 0 20px rgba(46, 204, 113, 0.8) !important; border-color: #2ecc71 !important; color: #2ecc71 !important; text-shadow: 0 0 10px #2ecc71 !important; }
 
         #sag-panel { display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 1350px; flex-shrink: 0; }
-        
         #chat-container { width: 100%; height: 200px; background: radial-gradient(circle at top, #2a2c30 0%, #0d0d0f 100%); border: 6px solid #1a1a1a; border-radius: 30px; display: flex; flex-direction: column; position: relative; box-shadow: inset 0 0 40px rgba(0,0,0,0.9), 0 20px 50px rgba(0,0,0,0.8); overflow: hidden; box-sizing: border-box;}
         #chat-header { background: rgba(0,0,0,0.5); padding: 10px; text-align: center; font-size: 14px; font-weight: bold; color: #d4af37; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 2px; text-transform: uppercase;}
         #chat-mesajlar { flex: 1; padding: 10px 25px; overflow-y: auto; font-size: 13px; color: #ecf0f1; display: flex; flex-direction: column; gap: 8px; word-wrap: break-word;}
@@ -60,20 +68,19 @@
         #chat-input { flex: 1; background: rgba(0,0,0,0.6); border: 1px solid #444; padding: 10px 15px; color: white; outline: none; font-size: 13px; border-radius: 25px 0 0 25px; transition: 0.2s;}
         #btn-chat-gonder { background: linear-gradient(to bottom, #f3e5ab, #d4af37); color: black; border: none; padding: 0 15px; font-weight: bold; cursor: pointer; font-size: 13px; border-radius: 0 25px 25px 0;}
 
-        /* DJ PANELİ TASARIMI */
         #dj-container { width: 100%; background: #111; border: 4px solid #1a1a1a; border-radius: 20px; padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 20px #000;}
         .dj-baslik { font-size: 12px; color: #888; text-transform: uppercase; font-weight: bold; margin-bottom: -5px; display: flex; justify-content: space-between;}
         #dj-suan-calan { color: #d4af37; font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .dj-alt { display: flex; gap: 10px; align-items: center;}
         #dj-input { flex: 1; background: #0a0a0a; border: 1px solid #333; padding: 8px 12px; color: white; border-radius: 15px; font-size: 12px; outline: none;}
         #btn-dj-ekle { background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 15px; cursor: pointer; font-weight: bold; font-size: 12px;}
-        #btn-dj-ekle:hover { background: #415b76;}
         #btn-dj-atla { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 15px; cursor: pointer; font-weight: bold; font-size: 12px;}
-        #btn-dj-atla:hover { background: #c0392b;}
         .dj-ses-kontrol { display: flex; align-items: center; gap: 5px; font-size: 18px; color: #888;}
         #dj-ses { width: 60px; accent-color: #d4af37; }
 
-        .oyuncu-etiket { position: absolute; background: rgba(0,0,0,0.6); border: 1px solid #d4af37; padding: 4px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; color: #ecf0f1; letter-spacing: 1px; z-index: 10; transition: 0.3s;}
+        .oyuncu-etiket { position: absolute; background: rgba(0,0,0,0.8); border: 2px solid #d4af37; padding: 6px 15px; border-radius: 12px; font-size: 13px; font-weight: bold; color: #ecf0f1; text-align: center; z-index: 10; transition: 0.3s; min-width: 80px;}
+        .oyuncu-etiket.aktif-sira-isim { border: 3px solid transparent; background-clip: padding-box; box-shadow: 0 0 20px rgba(46, 204, 113, 0.8); border-color: #2ecc71; }
+        
         #etiket-top { top: 20px; left: 50%; transform: translateX(-50%); }
         #etiket-left { top: 50%; left: 20px; transform: translateY(-50%); }
         #etiket-right { top: 50%; right: 20px; transform: translateY(-50%); }
@@ -85,15 +92,20 @@
         #masa-ortasi { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); width: 90%; height: 280px; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box;}
         #acilan-seriler { width: 65%; display: flex; flex-wrap: wrap; gap: 15px; align-content: flex-start; }
         #acilan-ciftler { width: 30%; display: flex; flex-direction: column; flex-wrap: wrap; gap: 8px; align-content: flex-end; }
+        
         .acilan-per { display: flex; gap: 1px; background: transparent; padding: 0; box-shadow: 2px 2px 10px rgba(0,0,0,0.5); border-radius: 4px; transition: 0.2s; cursor: pointer;}
         .acilan-per.drag-over { transform: scale(1.05); box-shadow: 0 0 15px #d4af37;}
+        .acilan-per .tas { width: 32px; height: 48px; border-radius: 4px; padding-top: 3px; border-width: 1px; }
+        .acilan-per .tas .deger { font-size: 16px; }
+        .acilan-per .tas .yildiz { bottom: 2px; font-size: 10px; }
+        .acilan-per .tas.sahte .deger { font-size: 18px; }
 
         #alt-alan { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; justify-content: center; align-items: flex-end; gap: 20px; padding: 0 20px; box-sizing: border-box;}
 
         .sol-panel { display: flex; flex-direction: column; gap: 10px; width: 120px;}
         .bilgi-kutusu { background: #111; border: 1px solid #333; padding: 10px; border-radius: 6px; text-align: center; box-shadow: inset 0 0 10px #000;}
         .bilgi-kutusu div { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 2px;}
-        .bilgi-kutusu span { font-size: 18px; font-weight: bold; color: #d4af37;}
+        .bilgi-kutusu span { font-size: 16px; font-weight: bold; color: #d4af37;}
         
         .aksiyon-butonlari { display: flex; gap: 5px; justify-content: space-between;}
         .btn-aksiyon { background: #1a1a1a; border: 1px solid #444; color: white; padding: 8px 0; width: 48%; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s;}
@@ -134,13 +146,11 @@
         .kirmizi { color: #d32f2f; } .siyah { color: #212121; } .mavi { color: #1976d2; } .sari { color: #f57f17; }
         .sahte { color: #8e44ad; }
         .sahte .deger { font-size: 30px; margin-top: 5px;}
-
         .kapali-tas { background: linear-gradient(to bottom, #fdfbf7, #e9e4d0) !important; border: 1px solid #c8c0b0 !important; border-bottom: 3px solid #b0a590 !important; }
         .kapali-tas .deger, .kapali-tas .yildiz { display: none !important; }
 
         #ust-bilgi { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 20;}
         #durum-cubugu { font-size: 14px; font-weight: bold; color: #d4af37; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 15px; border: 1px solid #444; height: 28px; line-height: 18px; box-sizing: border-box;}
-        #sure-kapsayici { font-size: 14px; font-weight: bold; color: white; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 15px; border: 1px solid #d4af37; margin-left: 10px; height: 28px; line-height: 18px; box-sizing: border-box; display: none;}
         
         .btn-gorsel { background-color: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; padding: 4px; gap: 3px; cursor: pointer; transition: 0.2s; width: 48%;}
         .btn-gorsel:hover { border-color: #d4af37; background-color: #222;}
@@ -150,8 +160,14 @@
         
         #bitis-ekrani { display: none; z-index: 1000; }
         #bitis-mesaji { font-size: 32px; font-weight: bold; margin-bottom: 5px; }
-        .skor-tablosu { background: #ecf0f1; color: #2c3e50; border-radius: 10px; padding: 20px; width: 450px; text-align: left; margin-bottom: 20px; max-width: 90vw;}
-        .skor-satir { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #bdc3c7; font-size: 18px;}
+        .yazboz-tablo { width: 100%; border-collapse: collapse; margin-top: 10px; background: #1a1a1a; border-radius: 8px; overflow: hidden; }
+        .yazboz-tablo th, .yazboz-tablo td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #333; }
+        .yazboz-tablo th { background: #0a0a0a; color: #d4af37; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+        .yazboz-tablo tr:last-child td { border-bottom: none; }
+        .yazboz-tablo td { font-size: 15px; color: #ecf0f1; }
+        .yazboz-isim { font-weight: bold; }
+        .yazboz-durum { font-size: 12px; color: #aaa; background: #222; padding: 3px 8px; border-radius: 4px; }
+        .yazboz-puan { font-weight: bold; text-align: right !important; font-size: 18px; }
         
         @media screen and (min-width: 1750px) {
             #oyun-wrapper { flex-direction: row; justify-content: center; overflow: hidden; padding: 0;}
@@ -161,6 +177,10 @@
     </style>
 </head>
 <body>
+
+    <div id="top-bar">
+        <button onclick="document.getElementById('modal-isim').style.display='flex';" class="btn-gold" style="font-size:12px; padding: 5px 10px;">👤 İsim Değiştir</button>
+    </div>
 
     <div id="toast-container"></div>
     <div id="dondur-uyari">
@@ -175,24 +195,75 @@
         <div class="kutu">
             <h1>Area51 Okey</h1>
             <input type="text" id="oyuncu-isim-input" placeholder="Adını Gir" maxlength="12">
-            <button class="btn-gold" id="btn-kimlik-olustur">Masaya Otur</button>
+            <button class="btn-gold" id="btn-kimlik-olustur">Bağlan</button>
+        </div>
+    </div>
+
+    <div id="modal-isim" class="tam-ekran" style="display:none; z-index: 2000; background:rgba(0,0,0,0.8);">
+        <div class="kutu" style="width: 300px; padding: 20px;">
+            <h3 style="color:#d4af37; margin-top:0;">Yeni İsim</h3>
+            <input type="text" id="yeni-isim-input" placeholder="Yeni Adın" maxlength="12" style="width: 90%;">
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn-gold" onclick="isimDegistirGonder()">Kaydet</button>
+                <button class="btn-kirmizi" onclick="document.getElementById('modal-isim').style.display='none';">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-kur" class="tam-ekran" style="display:none; z-index: 2000; background:rgba(0,0,0,0.8);">
+        <div class="kutu" style="width: 350px;">
+            <h2 style="color:#d4af37; margin-top:0;">Masa Ayarları</h2>
+            <input type="text" id="ayar-isim" placeholder="Oda Adı" style="width: 90%;" maxlength="20">
+            <select id="ayar-el" style="width: 90%;">
+                <option value="1">1 El</option><option value="3">3 El</option><option value="5">5 El</option><option value="7">7 El</option><option value="10">10 El</option>
+            </select>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 10px; padding: 0 10px;">
+                <label style="color:white; font-size:16px;"><input type="checkbox" id="ayar-esli"> Eşli Oyun</label>
+                <label style="color:white; font-size:16px;"><input type="checkbox" id="ayar-katlama"> Katlamalı</label>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top: 20px;">
+                <button class="btn-gold" onclick="odaKurGonder()" id="btn-modal-kur">Kur</button>
+                <button class="btn-kirmizi" onclick="document.getElementById('modal-kur').style.display='none';">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="lobi-ekrani" class="tam-ekran" style="display: none;">
+        <div class="kutu" style="width: 600px; padding: 20px 40px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #333; padding-bottom: 10px;">
+                <h2 id="lobi-oda-adi" style="margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:400px;">Oda Lobicisi</h2>
+                <button id="btn-ayarlar-ac" class="btn-gold" style="display:none; padding:5px 10px; font-size:12px;" onclick="openAyarlar()">⚙️ Ayarlar</button>
+            </div>
+            <div class="koltuk-map">
+                <div class="koltuk" id="koltuk-0" onclick="koltukOtur(0)">Otur (Üst)</div>
+                <div class="koltuk" id="koltuk-1" onclick="koltukOtur(1)">Otur (Sağ)</div>
+                <div class="koltuk" id="koltuk-2" onclick="koltukOtur(2)">Otur (Alt)</div>
+                <div class="koltuk" id="koltuk-3" onclick="koltukOtur(3)">Otur (Sol)</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:20px;">
+                <button class="btn-kirmizi" onclick="socket.emit('masadanAyril');">Odadan Ayrıl</button>
+                <button id="btn-lobi-baslat" class="btn-gold" style="display:none;">Oyunu Başlat</button>
+            </div>
         </div>
     </div>
 
     <div id="hub-ekrani" class="tam-ekran" style="display: none;">
         <div class="kutu" style="width: 500px;">
             <h2>VIP Odalar</h2>
-            <button class="btn-gold" id="btn-oda-kur" style="width: 100%; margin-bottom: 15px;">Yeni Masa Kur</button>
+            <button class="btn-gold" onclick="openYeniMasa()" style="width: 100%; margin-bottom: 15px;">Yeni Masa Kur</button>
             <div id="oda-listesi"></div>
         </div>
     </div>
 
     <div id="bitis-ekrani" class="tam-ekran" style="display: none;">
-        <div class="kutu" style="width: 500px;">
+        <div class="kutu" style="width: 550px;">
             <h2 id="bitis-mesaji" style="font-size: 28px; margin-bottom: 5px;">Oyun Bitti!</h2>
             <div id="bitis-sebebi" style="color: #aaa; margin-bottom: 20px;"></div>
-            <div id="yazboz-alani" style="background: #111; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333;"></div>
-            <button class="btn-gold" id="btn-odaya-don" style="width: 100%;">Odaya Dön</button>
+            <div id="yazboz-alani" style="margin-bottom: 20px; text-align: left;"></div>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button id="btn-sonraki-el" class="btn-gold" style="display:none; flex:1;">Sıradaki Ele Geç</button>
+                <button class="btn-kirmizi" id="btn-odaya-don" style="flex:1;">Lobiye Dön</button>
+            </div>
         </div>
     </div>
 
@@ -202,7 +273,6 @@
             <div id="ust-bilgi">
                 <div style="display: flex;">
                     <div id="durum-cubugu">Bağlanılıyor...</div>
-                    <div id="sure-kapsayici">Süre: <span id="sure-sayaci" style="color: #2ecc71;">60</span>s</div>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button id="btn-oyunu-baslat" class="btn-gold" style="display:none; padding: 5px 15px; font-size: 13px;">Oyunu Başlat</button>
@@ -210,9 +280,21 @@
                 </div>
             </div>
 
-            <div class="oyuncu-etiket" id="etiket-top">Bekleniyor</div>
-            <div class="oyuncu-etiket" id="etiket-left">Bekleniyor</div>
-            <div class="oyuncu-etiket" id="etiket-right">Bekleniyor</div>
+            <div class="oyuncu-etiket" id="etiket-top">
+                <div class="isim-text">Bekleniyor</div>
+                <div class="durum-text" style="font-size:11px; margin-top:2px;"></div>
+                <div class="sure-bar-diger" style="height: 3px; background: #2ecc71; width: 0%; margin-top: 4px; border-radius:2px; transition: width 1s linear;"></div>
+            </div>
+            <div class="oyuncu-etiket" id="etiket-left">
+                <div class="isim-text">Bekleniyor</div>
+                <div class="durum-text" style="font-size:11px; margin-top:2px;"></div>
+                <div class="sure-bar-diger" style="height: 3px; background: #2ecc71; width: 0%; margin-top: 4px; border-radius:2px; transition: width 1s linear;"></div>
+            </div>
+            <div class="oyuncu-etiket" id="etiket-right">
+                <div class="isim-text">Bekleniyor</div>
+                <div class="durum-text" style="font-size:11px; margin-top:2px;"></div>
+                <div class="sure-bar-diger" style="height: 3px; background: #2ecc71; width: 0%; margin-top: 4px; border-radius:2px; transition: width 1s linear;"></div>
+            </div>
 
             <div class="rakip-cop" id="alan-cop-top"></div>
             <div class="rakip-cop" id="alan-cop-right"></div>
@@ -224,8 +306,8 @@
 
             <div id="alt-alan">
                 <div class="sol-panel">
-                    <div class="bilgi-kutusu"><div>Seri Puanı</div><span id="secili-seri-puan">0</span></div>
-                    <div class="bilgi-kutusu"><div>Çiftler</div><span id="secili-cift-sayisi">0</span></div>
+                    <div class="bilgi-kutusu"><div>Seri Puanı</div><span id="secili-seri-puan">0</span><span id="hedef-seri" style="color:#666; font-size:11px; display:block;"></span></div>
+                    <div class="bilgi-kutusu"><div>Çiftler</div><span id="secili-cift-sayisi">0</span><span id="hedef-cift" style="color:#666; font-size:12px;">/5</span></div>
                     <div class="aksiyon-butonlari">
                         <button class="btn-aksiyon" id="btn-seri-ac" disabled>Seri Aç</button>
                         <button class="btn-aksiyon" id="btn-cift-ac" disabled>Çift Aç</button>
@@ -235,7 +317,7 @@
                         <button class="btn-gorsel" id="btn-cift-diz" title="Çift Diz"><div class="mini-tas">7</div><div class="mini-tas">7</div></button>
                     </div>
                     <div class="aksiyon-butonlari" style="margin-top: 2px;">
-                        <button class="btn-aksiyon" id="btn-geri-topla" style="width: 100%; border-color: #e74c3c;">Geri Topla</button>
+                        <button class="btn-aksiyon" id="btn-geri-topla" style="width: 100%; border-color: #e74c3c;" disabled>Geri Topla</button>
                     </div>
                 </div>
 
@@ -245,7 +327,12 @@
                     <div class="oyun-slotu" id="cop-left"></div>
                 </div>
 
-                <div id="benim-istakam"></div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <div id="benim-sure-bar-container" style="width: 100%; height: 6px; background: #222; border-radius: 3px; display: none;">
+                        <div id="benim-sure-bar" style="height: 100%; background: #2ecc71; width: 100%; border-radius: 3px; transition: width 1s linear, background-color 0.5s;"></div>
+                    </div>
+                    <div id="benim-istakam"></div>
+                </div>
 
                 <div style="display: flex; gap: 15px; align-items: flex-end;">
                     <div class="etkilesim-alani">
@@ -315,92 +402,47 @@
         const btnSeriAc = document.getElementById('btn-seri-ac');
         const btnCiftAc = document.getElementById('btn-cift-ac');
         const btnYandanIptal = document.getElementById('btn-yandan-iptal');
-        const btnOyunuBaslat = document.getElementById('btn-oyunu-baslat');
         const btnGeriTopla = document.getElementById('btn-geri-topla');
 
         let draggedTas = null; let draggedFromIndex = null;
         let benimSira = false; let benimElim = Array(30).fill(null); 
         let oyunOkeyi = null; let hedefDesteSlot = null; let benimIndex = 0; let isimlerListesi = [];
-        let gecerliAcmayaHazirGruplar = []; let ciftGruplari = []; let seciliTasId = null;
-        let turnTimerInterval;
-        let hamleYapildi = false; 
-        let currentRoomHostId = null; 
+        let seciliTasId = null; let turnTimerInterval; let hamleYapildi = false; 
+        let currentRoomHostId = null; let currentOdaDurum = null; let isUpdatingRoom = false;
+        let reqSeriPuan = 101; let reqCiftSayi = 5;
 
-        // YOUTUBE DJ PLAYER VE SENKRONİZASYON MANTIĞI
-        let ytPlayer;
-        let ytPlayerReady = false;
-        let currentSongPayload = null;
-        let musicReceiveTime = 0;
-
+        let ytPlayer; let ytPlayerReady = false; let currentSongPayload = null; let musicReceiveTime = 0;
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('yt-player', {
                 height: '0', width: '0', videoId: '',
                 playerVars: { 'autoplay': 1, 'controls': 0, 'origin': window.location.origin },
-                events: { 
-                    'onReady': () => { ytPlayerReady = true; },
-                    'onStateChange': onPlayerStateChange 
-                }
+                events: { 'onReady': () => { ytPlayerReady = true; }, 'onStateChange': onPlayerStateChange }
             });
         }
-
-        function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.ENDED) {
-                if (myPlayerId === currentRoomHostId) socket.emit('sarkiBittiOtoGecis');
-            }
-        }
-        
-        document.getElementById('dj-ses').addEventListener('input', (e) => {
-            if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(e.target.value);
-        });
-
-        document.getElementById('btn-dj-ekle').addEventListener('click', () => {
-            let val = document.getElementById('dj-input').value.trim();
-            if(val) { socket.emit('sarkiAraEkle', val); document.getElementById('dj-input').value = ''; }
-        });
-
-        document.getElementById('dj-input').addEventListener('keypress', (e) => { 
-            if(e.key==='Enter') document.getElementById('btn-dj-ekle').click(); 
-        });
-
+        function onPlayerStateChange(event) { if (event.data === YT.PlayerState.ENDED) { if (myPlayerId === currentRoomHostId) socket.emit('sarkiBittiOtoGecis'); } }
+        document.getElementById('dj-ses').addEventListener('input', (e) => { if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(e.target.value); });
+        document.getElementById('btn-dj-ekle').addEventListener('click', () => { let val = document.getElementById('dj-input').value.trim(); if(val) { socket.emit('sarkiAraEkle', val); document.getElementById('dj-input').value = ''; } });
+        document.getElementById('dj-input').addEventListener('keypress', (e) => { if(e.key==='Enter') document.getElementById('btn-dj-ekle').click(); });
         document.getElementById('btn-dj-atla').addEventListener('click', () => socket.emit('sarkiAtlaOy'));
         
         socket.on('music_play', (song) => {
             if (song) {
-                currentSongPayload = song;
-                musicReceiveTime = performance.now(); 
-                document.getElementById('dj-suan-calan').innerText = "🎶 " + song.title;
-                document.getElementById('btn-dj-atla').innerText = "Atla (0/2)";
-                
+                currentSongPayload = song; musicReceiveTime = performance.now(); 
+                document.getElementById('dj-suan-calan').innerText = "🎶 " + song.title; document.getElementById('btn-dj-atla').innerText = "Atla (0/2)";
                 const playWhenReady = () => {
                     if (ytPlayer && ytPlayerReady && ytPlayer.loadVideoById) {
                         let driftDelay = (performance.now() - musicReceiveTime) / 1000;
-                        let exactStart = (song.elapsedTime || 0) + driftDelay;
-                        ytPlayer.loadVideoById({ videoId: song.id, startSeconds: exactStart });
+                        ytPlayer.loadVideoById({ videoId: song.id, startSeconds: (song.elapsedTime || 0) + driftDelay });
                     } else { setTimeout(playWhenReady, 100); }
-                };
-                playWhenReady();
+                }; playWhenReady();
             } else {
-                currentSongPayload = null;
-                document.getElementById('dj-suan-calan').innerText = "Şu an sessizlik hakim...";
-                document.getElementById('btn-dj-atla').innerText = "Atla (0/2)";
+                currentSongPayload = null; document.getElementById('dj-suan-calan').innerText = "Şu an sessizlik hakim..."; document.getElementById('btn-dj-atla').innerText = "Atla (0/2)";
                 if (ytPlayer && ytPlayerReady && ytPlayer.stopVideo) ytPlayer.stopVideo();
             }
         });
+        document.addEventListener('click', () => { if (ytPlayer && ytPlayerReady && currentSongPayload) { let state = ytPlayer.getPlayerState(); if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) { ytPlayer.playVideo(); } } });
+        socket.on('music_voteUpdate', (data) => { document.getElementById('btn-dj-atla').innerText = `Atla (${data.current}/${data.required})`; });
 
-        document.addEventListener('click', () => {
-            if (ytPlayer && ytPlayerReady && currentSongPayload) {
-                let state = ytPlayer.getPlayerState();
-                if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
-                    ytPlayer.playVideo();
-                }
-            }
-        });
-
-        socket.on('music_voteUpdate', (data) => {
-            document.getElementById('btn-dj-atla').innerText = `Atla (${data.current}/${data.required})`;
-        });
-
-        // OYUN FONKSİYONLARI 
         function showToast(message, type="info") {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.innerText = message;
@@ -409,27 +451,22 @@
 
         function playTurnSound() {
             try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContext) return;
-                const ctx = new AudioContext(); 
-                const osc = ctx.createOscillator(); 
-                const gain = ctx.createGain();
-                osc.type = 'sine'; 
-                osc.frequency.setValueAtTime(100, ctx.currentTime); 
-                osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.4); 
-                gain.gain.setValueAtTime(0, ctx.currentTime); 
-                gain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.05); 
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4); 
-                osc.connect(gain); gain.connect(ctx.destination); 
-                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.45);
+                const AudioContext = window.AudioContext || window.webkitAudioContext; if (!AudioContext) return;
+                const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                osc.type = 'sine'; osc.frequency.setValueAtTime(100, ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.4); 
+                gain.gain.setValueAtTime(0, ctx.currentTime); gain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.05); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4); 
+                osc.connect(gain); gain.connect(ctx.destination); osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.45);
             } catch(e) {}
         }
 
         function siraParlamasiGuncelle(aktifSira) {
-            document.querySelectorAll('.oyuncu-etiket, #isim-bottom').forEach(el => el.classList.remove('aktif-sira-isim'));
+            document.querySelectorAll('.oyuncu-etiket, #isim-bottom').forEach(el => { el.classList.remove('aktif-sira-isim'); let subBar = el.querySelector('.sure-bar-diger'); if(subBar) subBar.style.width = '0%'; });
+            document.getElementById('benim-sure-bar-container').style.display = 'none';
+
             if (aktifSira === -1) { document.getElementById('masa-container').classList.remove('sira-bende-border'); return; }
-            if (aktifSira === benimIndex) { document.getElementById('isim-bottom').classList.add('aktif-sira-isim'); document.getElementById('masa-container').classList.add('sira-bende-border'); } 
-            else {
+            if (aktifSira === benimIndex) { 
+                document.getElementById('isim-bottom').classList.add('aktif-sira-isim'); document.getElementById('masa-container').classList.add('sira-bende-border'); document.getElementById('benim-sure-bar-container').style.display = 'block';
+            } else {
                 document.getElementById('masa-container').classList.remove('sira-bende-border');
                 if (aktifSira === (benimIndex + 1) % 4) document.getElementById('etiket-right').classList.add('aktif-sira-isim');
                 else if (aktifSira === (benimIndex + 2) % 4) document.getElementById('etiket-top').classList.add('aktif-sira-isim');
@@ -438,56 +475,55 @@
         }
 
         function startClientTimer(endTime) {
-            clearInterval(turnTimerInterval); document.getElementById('sure-kapsayici').style.display = 'block';
-            const timerEl = document.getElementById('sure-sayaci');
+            clearInterval(turnTimerInterval); const totalTurnTime = 60000;
             turnTimerInterval = setInterval(() => {
-                let left = Math.ceil((endTime - Date.now()) / 1000);
-                if (left < 0) left = 0; timerEl.innerText = left; timerEl.style.color = left <= 10 ? '#e74c3c' : '#2ecc71';
+                let left = endTime - Date.now(); if (left < 0) left = 0; 
+                let percent = (left / totalTurnTime) * 100; let color = left <= 10000 ? '#e74c3c' : '#2ecc71';
+
+                if (benimSira) { let bar = document.getElementById('benim-sure-bar'); if(bar) { bar.style.width = percent + '%'; bar.style.backgroundColor = color; } } 
+                else { let activeTag = document.querySelector('.aktif-sira-isim'); if(activeTag) { let subBar = activeTag.querySelector('.sure-bar-diger'); if (subBar) { subBar.style.width = percent + '%'; subBar.style.backgroundColor = color; } activeTag.style.boxShadow = left <= 10000 ? '0 0 20px rgba(231, 76, 60, 0.8)' : '0 0 20px rgba(46, 204, 113, 0.8)'; } }
             }, 1000);
         }
 
-        document.addEventListener('dragend', () => { 
-            document.querySelectorAll('.tas').forEach(t => t.classList.remove('dragging'));
-            draggedTas = null; 
-        });
-
-        function boyutlandir() {
-            const masa = document.getElementById('masa-container'); const wrapper = document.getElementById('oyun-wrapper');
-            if(wrapper.style.display === 'none') return;
-            let scale = (window.innerWidth * 0.95) / 1350; if (scale > 1) scale = 1; 
-            masa.style.transform = `scale(${scale})`; masa.style.marginBottom = `-${750 - (750 * scale)}px`;
-        }
+        document.addEventListener('dragend', () => { document.querySelectorAll('.tas').forEach(t => t.classList.remove('dragging')); draggedTas = null; });
+        function boyutlandir() { const masa = document.getElementById('masa-container'); const wrapper = document.getElementById('oyun-wrapper'); if(wrapper.style.display === 'none') return; let scale = (window.innerWidth * 0.95) / 1350; if (scale > 1) scale = 1; masa.style.transform = `scale(${scale})`; masa.style.marginBottom = `-${750 - (750 * scale)}px`; }
         window.addEventListener('resize', boyutlandir);
 
         let myPlayerId = localStorage.getItem('okey_playerId'); let myPlayerName = localStorage.getItem('okey_playerName');
         if (!myPlayerId) { myPlayerId = Math.random().toString(36).substr(2, 9); localStorage.setItem('okey_playerId', myPlayerId); }
         if (myPlayerName) socket.emit('kimlikBildir', { playerId: myPlayerId, isim: myPlayerName }); else document.getElementById('giris-ekrani').style.display = 'flex';
 
-        document.getElementById('btn-kimlik-olustur').addEventListener('click', () => {
-            let isim = document.getElementById('oyuncu-isim-input').value.trim();
-            if(isim) { localStorage.setItem('okey_playerName', isim); socket.emit('kimlikBildir', { playerId: myPlayerId, isim: isim }); document.getElementById('giris-ekrani').style.display = 'none'; }
-        });
+        document.getElementById('btn-kimlik-olustur').addEventListener('click', () => { let isim = document.getElementById('oyuncu-isim-input').value.trim(); if(isim) { localStorage.setItem('okey_playerName', isim); socket.emit('kimlikBildir', { playerId: myPlayerId, isim: isim }); document.getElementById('giris-ekrani').style.display = 'none'; } });
+        
+        function isimDegistirGonder() { let ni = document.getElementById('yeni-isim-input').value.trim(); if(ni) { localStorage.setItem('okey_playerName', ni); myPlayerName = ni; socket.emit('isimDegistir', ni); document.getElementById('modal-isim').style.display='none'; } }
+        document.getElementById('btn-masadan-ayril').addEventListener('click', () => { socket.emit('masadanAyril'); document.getElementById('oyun-wrapper').style.display = 'none'; });
 
-        document.getElementById('btn-masadan-ayril').addEventListener('click', () => {
-            socket.emit('masadanAyril'); document.getElementById('oyun-wrapper').style.display = 'none';
-        });
-
-        function gonderChat() {
-            let input = document.getElementById('chat-input'); let val = input.value.trim();
-            if(val) { socket.emit('chatMesaji', val); input.value = ''; }
-        }
+        function gonderChat() { let input = document.getElementById('chat-input'); let val = input.value.trim(); if(val) { socket.emit('chatMesaji', val); input.value = ''; } }
         document.getElementById('btn-chat-gonder').addEventListener('click', gonderChat); document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key==='Enter') gonderChat(); });
+        socket.on('yeniChatMesaji', (data) => { let kutu = document.getElementById('chat-mesajlar'); let div = document.createElement('div'); if(data.type === 'system') div.className = 'system-msg'; div.innerHTML = data.type === 'system' ? `[SİSTEM]: ${data.mesaj}` : `<span style="color:#d4af37; font-weight:bold;">${data.isim}:</span> ${data.mesaj}`; kutu.appendChild(div); kutu.scrollTop = kutu.scrollHeight; });
 
-        socket.on('yeniChatMesaji', (data) => {
-            let kutu = document.getElementById('chat-mesajlar'); let div = document.createElement('div');
-            if(data.type === 'system') div.className = 'system-msg';
-            div.innerHTML = data.type === 'system' ? `[SİSTEM]: ${data.mesaj}` : `<span style="color:#d4af37; font-weight:bold;">${data.isim}:</span> ${data.mesaj}`;
-            kutu.appendChild(div); kutu.scrollTop = kutu.scrollHeight;
-        });
-
-        socket.on('hubGoster', (odalar) => { document.getElementById('giris-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'none'; document.getElementById('hub-ekrani').style.display = 'flex'; renderHub(odalar); });
+        socket.on('hubGoster', (odalar) => { document.getElementById('giris-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'none'; document.getElementById('lobi-ekrani').style.display = 'none'; document.getElementById('hub-ekrani').style.display = 'flex'; renderHub(odalar); });
         socket.on('hubGuncelle', (odalar) => { if(document.getElementById('hub-ekrani').style.display === 'flex') renderHub(odalar); });
-        document.getElementById('btn-oda-kur').addEventListener('click', () => socket.emit('odaOlustur'));
+        
+        function openYeniMasa() {
+            isUpdatingRoom = false;
+            document.getElementById('ayar-isim').value = ""; document.getElementById('ayar-el').value = "1"; document.getElementById('ayar-esli').checked = false; document.getElementById('ayar-katlama').checked = false;
+            document.getElementById('btn-modal-kur').innerText = "Kur"; document.getElementById('modal-kur').style.display = 'flex';
+        }
+        
+        function openAyarlar() {
+            if(!currentOdaDurum) return; isUpdatingRoom = true;
+            let st = currentOdaDurum.settings || { rounds: 1, isEsli: false, isKatlamali: false };
+            document.getElementById('ayar-isim').value = currentOdaDurum.name; document.getElementById('ayar-el').value = st.rounds; document.getElementById('ayar-esli').checked = st.isEsli; document.getElementById('ayar-katlama').checked = st.isKatlamali;
+            document.getElementById('btn-modal-kur').innerText = "Güncelle"; document.getElementById('modal-kur').style.display = 'flex';
+        }
+
+        function odaKurGonder() {
+            let ayarlar = { odaAdi: document.getElementById('ayar-isim').value.trim(), rounds: parseInt(document.getElementById('ayar-el').value), isEsli: document.getElementById('ayar-esli').checked, isKatlamali: document.getElementById('ayar-katlama').checked };
+            if (isUpdatingRoom) { if(!ayarlar.odaAdi && currentOdaDurum) ayarlar.odaAdi = currentOdaDurum.name; socket.emit('ayarlariGuncelle', ayarlar); } 
+            else { socket.emit('odaOlustur', ayarlar); }
+            document.getElementById('modal-kur').style.display='none';
+        }
 
         function renderHub(odalar) {
             let div = document.getElementById('oda-listesi'); div.innerHTML = '';
@@ -501,24 +537,70 @@
             });
         }
 
+        function koltukOtur(idx) { socket.emit('otur', idx); }
+
         socket.on('odaGuncellendi', (data) => {
-            document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; boyutlandir(); 
-            isimlerListesi = data.players; currentRoomHostId = data.hostId;
-            if (isimlerListesi.length > 0) {
-                let mIdx = isimlerListesi.findIndex(isim => isim === myPlayerName) || 0;
-                document.getElementById('isim-bottom').innerText = "Sen"; document.getElementById('etiket-right').innerText = isimlerListesi[(mIdx + 1) % 4] || "Bekleniyor";
-                document.getElementById('etiket-top').innerText = isimlerListesi[(mIdx + 2) % 4] || "Bekleniyor"; document.getElementById('etiket-left').innerText = isimlerListesi[(mIdx + 3) % 4] || "Bekleniyor";
+            currentOdaDurum = data; currentRoomHostId = data.hostId;
+            document.getElementById('hub-ekrani').style.display = 'none'; 
+            
+            if (data.players && data.players.length > 0) {
+                isimlerListesi = data.players.map(p => p ? p.isim : "Boş");
+                let mIdx = data.players.findIndex(p => p && p.playerId === myPlayerId);
+                if (mIdx === -1) mIdx = 0;
+
+                let setTag = (id, targetIdx) => {
+                    let p = data.players[targetIdx];
+                    if (!p) { document.querySelector(`#${id} .isim-text`).innerText = "Bekleniyor"; document.querySelector(`#${id} .durum-text`).innerHTML = ""; return; }
+                    document.querySelector(`#${id} .isim-text`).innerText = p.isim;
+                    let stat = p.ciftAcmisMi ? "<span style='color:#3498db'>Çift Açtı</span>" : (p.perAcmisMi ? "<span style='color:#f1c40f'>Seri Açtı</span>" : "");
+                    document.querySelector(`#${id} .durum-text`).innerHTML = stat;
+                };
+
+                let myP = data.players[mIdx];
+                document.getElementById('isim-bottom').innerHTML = "Sen" + (myP && myP.ciftAcmisMi ? "<br><span style='font-size:11px;color:#3498db'>Çift Açtın</span>" : (myP && myP.perAcmisMi ? "<br><span style='font-size:11px;color:#f1c40f'>Seri Açtın</span>" : ""));
+                setTag('etiket-right', (mIdx + 1) % 4); setTag('etiket-top', (mIdx + 2) % 4); setTag('etiket-left', (mIdx + 3) % 4);
             }
+
             if (data.status === 'waiting') {
-                if (myPlayerId === data.hostId) btnOyunuBaslat.style.display = data.players.length === 4 ? 'block' : 'none'; else btnOyunuBaslat.style.display = 'none';
-                durumCubugu.innerText = `Oda: ${data.players.length}/4 - Bekleniyor...`; siraParlamasiGuncelle(-1); document.getElementById('sure-kapsayici').style.display = 'none'; clearInterval(turnTimerInterval);
-            } else { btnOyunuBaslat.style.display = 'none'; }
+                document.getElementById('oyun-wrapper').style.display = 'none';
+                let st = data.settings || { isEsli: false, isKatlamali: false };
+                document.getElementById('lobi-ekrani').style.display = 'flex';
+                document.getElementById('lobi-oda-adi').innerText = data.name + (st.isEsli ? " (Eşli)" : "") + (st.isKatlamali ? " (Katlamalı)" : "");
+                
+                if (myPlayerId === data.hostId) { document.getElementById('btn-lobi-baslat').style.display = 'block'; document.getElementById('btn-ayarlar-ac').style.display = 'block'; } 
+                else { document.getElementById('btn-lobi-baslat').style.display = 'none'; document.getElementById('btn-ayarlar-ac').style.display = 'none'; }
+
+                for(let i=0; i<4; i++) {
+                    let kBtn = document.getElementById(`koltuk-${i}`);
+                    if (data.players[i]) {
+                        kBtn.innerText = data.players[i].isim; kBtn.className = 'koltuk dolu';
+                        if (st.isEsli) { if(i%2===0) kBtn.classList.add('dolu-teamA'); else kBtn.classList.add('dolu-teamB'); }
+                    } else { kBtn.innerText = "Otur"; kBtn.className = 'koltuk'; }
+                }
+            } else {
+                document.getElementById('lobi-ekrani').style.display = 'none'; document.getElementById('bitis-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; boyutlandir();
+                let isKat = data.settings ? data.settings.isKatlamali : false;
+                reqSeriPuan = isKat ? (data.currentMaxSeri || 100) + 1 : 101;
+                reqCiftSayi = isKat ? (data.currentMaxCift || 4) + 1 : 5;
+                document.getElementById('hedef-seri').innerText = isKat ? `Min: ${reqSeriPuan}` : "";
+                document.getElementById('hedef-cift').innerText = `/${reqCiftSayi}`;
+                siraParlamasiGuncelle(-1); clearInterval(turnTimerInterval);
+            }
         });
 
-        btnOyunuBaslat.addEventListener('click', () => { socket.emit('oyunuBaslat'); });
+        document.getElementById('btn-lobi-baslat').addEventListener('click', () => { socket.emit('oyunuBaslat'); });
 
-        function isOkey(tile) { return tile && oyunOkeyi && tile.color === oyunOkeyi.color && tile.value === oyunOkeyi.value && tile.color !== 'sahte' && !tile.isSahte; }
+        socket.on('oyunBasladi', (data) => {
+            oyunOkeyi = data.okey; benimIndex = data.benimIndex; seciliTasId = null;
+            document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('bitis-ekrani').style.display = 'none'; document.getElementById('lobi-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; document.getElementById('chat-mesajlar').innerHTML = '';
+            boyutlandir(); durumCubugu.innerText = "Oyun Başladı! Sıra bekleniyor...";
+            gostergeDiv.innerHTML = ''; gostergeDiv.appendChild(tasOlustur(data.gosterge, false)); kalanTasSpan.innerText = data.kalanTas;
+            benimElim = Array(30).fill(null); data.istaka.forEach((tas, i) => benimElim[i] = tas);
+            istakayiCiz(); renderMasa([]); renderCopler({ 0: null, 1: null, 2: null, 3: null });
+        });
+
         function getEff(tile) { return tile.color === 'sahte' && oyunOkeyi ? { id: tile.id, color: oyunOkeyi.color, value: oyunOkeyi.value, isSahte: true } : tile; }
+        function isOkey(tile) { return tile && oyunOkeyi && tile.color === oyunOkeyi.color && tile.value === oyunOkeyi.value && tile.color !== 'sahte' && !tile.isSahte; }
 
         function isPairValid(group) {
             if (group.length !== 2) return false; let t1 = getEff(group[0]), t2 = getEff(group[1]);
@@ -533,10 +615,13 @@
 
         function isRunValid(group) {
             if (group.length < 3 || group.length > 13) return false;
-            let n = group.map(t => getEff(t)).filter(t => !isOkey(t)); if (n.length === 0) return true;
-            if (n.some(t => t.color !== n[0].color)) return false;
-            let vals = n.map(t => t.value).sort((a,b)=>a-b); let okeyC = group.length - n.length;
-            let req = 0; for(let i=0; i<vals.length-1; i++){ let g = vals[i+1]-vals[i]-1; if(g<0) return false; req+=g; } return req <= okeyC;
+            let targetColor = null; let firstNormalIdx = -1;
+            for (let i = 0; i < group.length; i++) { let eff = getEff(group[i]); if (!isOkey(eff)) { if (!targetColor) { targetColor = eff.color; firstNormalIdx = i; } else if (eff.color !== targetColor) return false; } }
+            if (!targetColor) return true;
+            let firstVal = getEff(group[firstNormalIdx]).value; let startVal = firstVal - firstNormalIdx;
+            if (startVal < 1 || startVal + group.length - 1 > 13) return false;
+            for (let i = 0; i < group.length; i++) { let eff = getEff(group[i]); if (!isOkey(eff)) { if (eff.value !== startVal + i) return false; } }
+            return true;
         }
 
         function isGroupValid(group) { return isSetValid(group) || isRunValid(group); }
@@ -551,7 +636,6 @@
             return resultVals.reduce((a, b) => a + b, 0);
         }
 
-        // DÜZELTME: 5'li perleri destekleyen mükemmel ayrıştırıcı
         function splitGroup(groupData) {
             let g = groupData.t; let idxs = groupData.idxl; let len = g.length;
             let isAllPairs = true;
@@ -561,21 +645,10 @@
             if (len <= 5) return [groupData];
 
             let chunkSizes = [];
-            if (len === 6) chunkSizes = [3, 3];
-            else if (len === 7) chunkSizes = [4, 3];
-            else if (len === 8) chunkSizes = [4, 4];
-            else if (len === 9) chunkSizes = [5, 4];
-            else if (len === 10) chunkSizes = [5, 5];
-            else if (len === 11) chunkSizes = [4, 4, 3];
-            else if (len === 12) chunkSizes = [4, 4, 4];
-            else if (len === 13) chunkSizes = [5, 4, 4];
-            else chunkSizes = [len];
+            if (len === 6) chunkSizes = [3, 3]; else if (len === 7) chunkSizes = [4, 3]; else if (len === 8) chunkSizes = [4, 4]; else if (len === 9) chunkSizes = [5, 4]; else if (len === 10) chunkSizes = [5, 5]; else if (len === 11) chunkSizes = [4, 4, 3]; else if (len === 12) chunkSizes = [4, 4, 4]; else if (len === 13) chunkSizes = [5, 4, 4]; else chunkSizes = [len];
 
             let chunks = []; let offset = 0;
-            for(let size of chunkSizes) {
-                chunks.push({ t: g.slice(offset, offset + size), idxl: idxs.slice(offset, offset + size) });
-                offset += size;
-            }
+            for(let size of chunkSizes) { chunks.push({ t: g.slice(offset, offset + size), idxl: idxs.slice(offset, offset + size) }); offset += size; }
             return chunks;
         }
 
@@ -598,7 +671,7 @@
                 });
             });
             puanSpan.innerText = totalSeriPuan; ciftSpan.innerText = ciftGruplari.length;
-            ciftSpan.style.color = ciftGruplari.length >= 5 ? "#2ecc71" : "#d4af37";
+            ciftSpan.style.color = ciftGruplari.length >= reqCiftSayi ? "#2ecc71" : "#d4af37";
             
             btnSeriAc.disabled = gecerliAcmayaHazirGruplar.length === 0 || !benimSira;
             btnCiftAc.disabled = ciftGruplari.length === 0 || !benimSira;
@@ -709,87 +782,95 @@
             for (let t of leftovers) {
                 if (currIdx < 30 && currIdx !== 15 && currIdx !== 0) {
                     if (mode === 'seri' && newRack[currIdx - 1]) {
-                        if (isPairValid([newRack[currIdx - 1], t])) {
-                            if (currIdx < 29 && currIdx !== 14) currIdx++; 
-                        }
+                        if (isPairValid([newRack[currIdx - 1], t])) { if (currIdx < 29 && currIdx !== 14) currIdx++; }
                     } else if (mode === 'cift' && currIdx % 15 >= 2 && newRack[currIdx - 1] && newRack[currIdx - 2]) {
-                        if (isGroupValid([newRack[currIdx - 2], newRack[currIdx - 1], t])) {
-                            if (currIdx < 29 && currIdx !== 14) currIdx++; 
-                        }
+                        if (isGroupValid([newRack[currIdx - 2], newRack[currIdx - 1], t])) { if (currIdx < 29 && currIdx !== 14) currIdx++; }
                     }
                 }
                 place(t);
             }
 
-            for (let t of unplaced) {
-                let emptyIdx = newRack.indexOf(null);
-                if (emptyIdx !== -1) newRack[emptyIdx] = t;
-            }
+            for (let t of unplaced) { let emptyIdx = newRack.indexOf(null); if (emptyIdx !== -1) newRack[emptyIdx] = t; }
             return newRack;
         }
 
         document.getElementById('btn-seri-diz').addEventListener('click', () => {
             seciliTasId = null; let compact = benimElim.filter(t => t !== null); let okeys = compact.filter(t => isOkey(t)); let normals = compact.filter(t => !isOkey(t));
-            let used = new Set(); let gruplar = [];
-            ['sari', 'kirmizi', 'siyah', 'mavi'].forEach(renk => {
-                let colorTiles = normals.filter(t => getEff(t).color === renk).sort((a,b) => getEff(a).value - getEff(b).value);
-                let keepExtracting = true;
-                while(keepExtracting) {
-                    let currentRun = []; let toRemove = [];
-                    for(let i=0; i<colorTiles.length; i++) {
-                        let tile = colorTiles[i];
-                        if (currentRun.length === 0) { currentRun.push(tile); toRemove.push(i); }
-                        else {
-                            let lastVal = getEff(currentRun[currentRun.length-1]).value; let val = getEff(tile).value;
-                            if (val === lastVal + 1) { currentRun.push(tile); toRemove.push(i); } else if (val === lastVal) {} 
-                            else if (val > lastVal + 1) { if (currentRun.length >= 3) break; else { currentRun = [tile]; toRemove = [i]; } }
+
+            function generateGroups(isColorFirst) {
+                let used = new Set(); let gruplar = [];
+                let scanColors = () => {
+                    ['sari', 'kirmizi', 'siyah', 'mavi'].forEach(renk => {
+                        let colorTiles = normals.filter(t => !used.has(t.id) && getEff(t).color === renk).sort((a,b) => getEff(a).value - getEff(b).value);
+                        let keepExtracting = true;
+                        while(keepExtracting) {
+                            let currentRun = []; let toRemove = [];
+                            for(let i=0; i<colorTiles.length; i++) {
+                                let tile = colorTiles[i];
+                                if (currentRun.length === 0) { currentRun.push(tile); toRemove.push(i); }
+                                else {
+                                    let lastVal = getEff(currentRun[currentRun.length-1]).value; let val = getEff(tile).value;
+                                    if (val === lastVal + 1) { currentRun.push(tile); toRemove.push(i); } 
+                                    else if (val > lastVal + 1) { if (currentRun.length >= 3) break; else { currentRun = [tile]; toRemove = [i]; } }
+                                }
+                            }
+                            if (currentRun.length >= 3) { gruplar.push(currentRun); currentRun.forEach(t => used.add(t.id)); for(let i = toRemove.length - 1; i >= 0; i--) colorTiles.splice(toRemove[i], 1); } else keepExtracting = false; 
+                        }
+                    });
+                };
+                let scanNumbers = () => {
+                    let sayilar = {}; normals.filter(t => !used.has(t.id)).forEach(t => { let v = getEff(t).value; if(!sayilar[v]) sayilar[v] = []; sayilar[v].push(t); });
+                    for(let val in sayilar) {
+                        let keepExtractingSets = true;
+                        while(keepExtractingSets) {
+                            let currentSet = []; let usedColors = new Set(); let toRemove = [];
+                            for(let i=0; i<sayilar[val].length; i++) { let tile = sayilar[val][i]; let color = getEff(tile).color; if(!usedColors.has(color)) { usedColors.add(color); currentSet.push(tile); toRemove.push(i); } }
+                            if (currentSet.length >= 3) { gruplar.push(currentSet); currentSet.forEach(t => used.add(t.id)); for(let i = toRemove.length - 1; i >= 0; i--) sayilar[val].splice(toRemove[i], 1); } else keepExtractingSets = false; 
                         }
                     }
-                    if (currentRun.length >= 3) { gruplar.push(currentRun); currentRun.forEach(t => used.add(t.id)); for(let i = toRemove.length - 1; i >= 0; i--) colorTiles.splice(toRemove[i], 1); } else keepExtracting = false; 
-                }
-            });
+                };
 
-            let kalanlar = normals.filter(t => !used.has(t.id)); let sayilar = {}; kalanlar.forEach(t => { let v = getEff(t).value; if(!sayilar[v]) sayilar[v] = []; sayilar[v].push(t); });
-            for(let val in sayilar) {
-                let keepExtractingSets = true;
-                while(keepExtractingSets) {
-                    let currentSet = []; let usedColors = new Set(); let toRemove = [];
-                    for(let i=0; i<sayilar[val].length; i++) { let tile = sayilar[val][i]; let color = getEff(tile).color; if(!usedColors.has(color)) { usedColors.add(color); currentSet.push(tile); toRemove.push(i); } }
-                    if (currentSet.length >= 3) { gruplar.push(currentSet); currentSet.forEach(t => used.add(t.id)); for(let i = toRemove.length - 1; i >= 0; i--) sayilar[val].splice(toRemove[i], 1); } else keepExtractingSets = false; 
-                }
-            }
+                if (isColorFirst) { scanColors(); scanNumbers(); } else { scanNumbers(); scanColors(); }
 
-            kalanlar = normals.filter(t => !used.has(t.id));
-            if (okeys.length > 0) {
-                let adaylar = [];
-                ['sari', 'kirmizi', 'siyah', 'mavi'].forEach(renk => {
-                    let colorTiles = kalanlar.filter(t => getEff(t).color === renk).sort((a,b) => getEff(a).value - getEff(b).value);
-                    for(let i=0; i<colorTiles.length-1; i++) {
-                        for(let j=i+1; j<colorTiles.length; j++) {
-                            let vI = getEff(colorTiles[i]).value; let vJ = getEff(colorTiles[j]).value; if (vI === vJ) continue; let diff = vJ - vI;
-                            if(diff === 1 || diff === 2) { let okeyVal = diff === 1 ? (vJ < 13 ? vJ+1 : vI-1) : vI+1; if (okeyVal >= 1 && okeyVal <= 13) adaylar.push({ type: 'seri', score: vI + vJ + okeyVal, tiles: [colorTiles[i], colorTiles[j]], diff: diff }); }
+                let okArr = [...okeys]; let kalanlar = normals.filter(t => !used.has(t.id));
+                if (okArr.length > 0) {
+                    let adaylar = [];
+                    ['sari', 'kirmizi', 'siyah', 'mavi'].forEach(renk => {
+                        let cTiles = kalanlar.filter(t => getEff(t).color === renk).sort((a,b) => getEff(a).value - getEff(b).value);
+                        for(let i=0; i<cTiles.length-1; i++) {
+                            for(let j=i+1; j<cTiles.length; j++) {
+                                let vI = getEff(cTiles[i]).value; let vJ = getEff(cTiles[j]).value; if (vI === vJ) continue; let diff = vJ - vI;
+                                if(diff === 1 || diff === 2) { 
+                                    let okeyVal = diff === 1 ? (vJ < 13 ? vJ+1 : vI-1) : vI+1; 
+                                    if (okeyVal >= 1 && okeyVal <= 13) adaylar.push({ type: 'seri', score: vI + vJ + okeyVal, tiles: [cTiles[i], cTiles[j]], diff: diff, okeyVal: okeyVal }); 
+                                }
+                            }
+                        }
+                    });
+                    let kSayilar = {}; kalanlar.forEach(t => { let v = getEff(t).value; if(!kSayilar[v]) kSayilar[v] = []; kSayilar[v].push(t); });
+                    for(let val in kSayilar) { let ts = kSayilar[val]; for(let i=0; i<ts.length-1; i++) { for(let j=i+1; j<ts.length; j++) { if (getEff(ts[i]).color !== getEff(ts[j]).color) { adaylar.push({ type: 'es', score: parseInt(val)*3, tiles: [ts[i], ts[j]] }); } } } }
+                    adaylar.sort((a,b) => b.score - a.score);
+
+                    for(let aday of adaylar) {
+                        if (okArr.length === 0) break;
+                        if (!used.has(aday.tiles[0].id) && !used.has(aday.tiles[1].id)) {
+                            used.add(aday.tiles[0].id); used.add(aday.tiles[1].id); let okeyTas = okArr.pop(); let yeniGrup = [];
+                            if (aday.type === 'seri') { 
+                                if (aday.diff === 2) yeniGrup = [aday.tiles[0], okeyTas, aday.tiles[1]]; 
+                                else if (aday.okeyVal < getEff(aday.tiles[0]).value) yeniGrup = [okeyTas, aday.tiles[0], aday.tiles[1]];
+                                else yeniGrup = [aday.tiles[0], aday.tiles[1], okeyTas]; 
+                            } else { yeniGrup = [aday.tiles[0], aday.tiles[1], okeyTas]; }
+                            gruplar.push(yeniGrup);
                         }
                     }
-                });
-                let kalanSayilar = {}; kalanlar.forEach(t => { let v = getEff(t).value; if(!kalanSayilar[v]) kalanSayilar[v] = []; kalanSayilar[v].push(t); });
-                for(let val in kalanSayilar) { let tilesOfVal = kalanSayilar[val]; for(let i=0; i<tilesOfVal.length-1; i++) { for(let j=i+1; j<tilesOfVal.length; j++) { if (getEff(tilesOfVal[i]).color !== getEff(tilesOfVal[j]).color) { adaylar.push({ type: 'es', score: parseInt(val)*3, tiles: [tilesOfVal[i], tilesOfVal[j]] }); } } } }
-                adaylar.sort((a,b) => b.score - a.score);
-
-                for(let aday of adaylar) {
-                    if (okeys.length === 0) break;
-                    if (!used.has(aday.tiles[0].id) && !used.has(aday.tiles[1].id)) {
-                        used.add(aday.tiles[0].id); used.add(aday.tiles[1].id); let okeyTas = okeys.pop(); let yeniGrup = [];
-                        if (aday.type === 'seri') { if (aday.diff === 2) yeniGrup = [aday.tiles[0], okeyTas, aday.tiles[1]]; else yeniGrup = [aday.tiles[0], aday.tiles[1], okeyTas]; } else yeniGrup = [aday.tiles[0], aday.tiles[1], okeyTas];
-                        gruplar.push(yeniGrup);
-                    }
                 }
+                let score = 0; gruplar.forEach(g => score += getGroupScore(g));
+                return { gruplar, used, okeysLeft: okArr, score };
             }
-            
-            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); 
-            let butunKalanlar = safeArrangeLeftovers([...sonKalanlar, ...okeys], 'seri'); 
-            
-            benimElim = placeTilesSmartly(gruplar, butunKalanlar, 'seri');
-            istakayiCiz();
+
+            let opt1 = generateGroups(true); let opt2 = generateGroups(false); let best = opt1.score >= opt2.score ? opt1 : opt2;
+            let sonKalanlar = compact.filter(t => !best.used.has(t.id) && !isOkey(t)); let butunKalanlar = safeArrangeLeftovers([...sonKalanlar, ...best.okeysLeft], 'seri'); 
+            benimElim = placeTilesSmartly(best.gruplar, butunKalanlar, 'seri'); istakayiCiz();
         });
 
         document.getElementById('btn-cift-diz').addEventListener('click', () => {
@@ -798,12 +879,8 @@
             for(let key in ciftHaritasi) { while(ciftHaritasi[key].length >= 2) { let t1 = ciftHaritasi[key].shift(); let t2 = ciftHaritasi[key].shift(); ciftler.push([t1, t2]); used.add(t1.id); used.add(t2.id); } }
             let kalanlar = normals.filter(t => !used.has(t.id)).sort((a,b) => getEff(b).value - getEff(a).value);
             for(let i=0; i<kalanlar.length; i++) { if(okeys.length > 0) { let okeyTas = okeys.pop(); ciftler.push([kalanlar[i], okeyTas]); used.add(kalanlar[i].id); } }
-            
-            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); 
-            let butunKalanlar = safeArrangeLeftovers([...sonKalanlar, ...okeys], 'cift');
-            
-            benimElim = placeTilesSmartly(ciftler, butunKalanlar, 'cift');
-            istakayiCiz();
+            let sonKalanlar = compact.filter(t => !used.has(t.id) && !isOkey(t)); let butunKalanlar = safeArrangeLeftovers([...sonKalanlar, ...okeys], 'cift');
+            benimElim = placeTilesSmartly(ciftler, butunKalanlar, 'cift'); istakayiCiz();
         });
 
         desteTasDiv.addEventListener('click', () => { if(benimSira && !desteTasDiv.disabled) { hedefDesteSlot = null; socket.emit('ortadanCek'); }});
@@ -821,23 +898,14 @@
         btnYandanIptal.addEventListener('click', () => socket.emit('yandanAlmaIptal'));
         btnGeriTopla.addEventListener('click', () => socket.emit('geriToplaTalebi'));
 
-        socket.on('reconnectData', (data) => {
-            document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('giris-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex';
-            boyutlandir(); seciliTasId = null; oyunOkeyi = data.okey; benimIndex = data.benimIndex; isimlerListesi = data.isimler;
-            gostergeDiv.innerHTML = ''; gostergeDiv.appendChild(tasOlustur(data.gosterge, false)); kalanTasSpan.innerText = data.kalanTas;
-            benimElim = Array(30).fill(null); data.istaka.forEach((tas, i) => benimElim[i] = tas);
-            document.getElementById('etiket-right').innerText = isimlerListesi[(benimIndex + 1) % 4]; document.getElementById('etiket-top').innerText = isimlerListesi[(benimIndex + 2) % 4]; document.getElementById('etiket-left').innerText = isimlerListesi[(benimIndex + 3) % 4];
-            istakayiCiz(); renderMasa(data.ortayaAcilanTumPerler); renderCopler(data.yerdekiTaslar); showToast("Yeniden bağlandın. Oyun devam ediyor.", "info");
-        });
+        document.getElementById('btn-sonraki-el').addEventListener('click', () => { socket.emit('sonrakiEl'); });
 
-        socket.on('oyunBasladi', (data) => {
-            oyunOkeyi = data.okey; benimIndex = data.benimIndex; isimlerListesi = data.isimler; seciliTasId = null;
-            document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex'; document.getElementById('chat-mesajlar').innerHTML = '';
-            boyutlandir(); durumCubugu.innerText = "Oyun Başladı! Sıra bekleniyor...";
+        socket.on('reconnectData', (data) => {
+            document.getElementById('hub-ekrani').style.display = 'none'; document.getElementById('giris-ekrani').style.display = 'none'; document.getElementById('lobi-ekrani').style.display = 'none'; document.getElementById('oyun-wrapper').style.display = 'flex';
+            boyutlandir(); seciliTasId = null; oyunOkeyi = data.okey; benimIndex = data.benimIndex; 
             gostergeDiv.innerHTML = ''; gostergeDiv.appendChild(tasOlustur(data.gosterge, false)); kalanTasSpan.innerText = data.kalanTas;
             benimElim = Array(30).fill(null); data.istaka.forEach((tas, i) => benimElim[i] = tas);
-            document.getElementById('etiket-right').innerText = isimlerListesi[(benimIndex + 1) % 4]; document.getElementById('etiket-top').innerText = isimlerListesi[(benimIndex + 2) % 4]; document.getElementById('etiket-left').innerText = isimlerListesi[(benimIndex + 3) % 4];
-            istakayiCiz(); renderMasa([]); renderCopler({ 0: null, 1: null, 2: null, 3: null });
+            istakayiCiz(); renderMasa(data.ortayaAcilanTumPerler); renderCopler(data.yerdekiTaslar); showToast("Yeniden bağlandın. Oyun devam ediyor.", "info");
         });
 
         function renderMasa(masaPerler) {
@@ -871,7 +939,7 @@
         });
 
         socket.on('siraBaskasinda', (data) => {
-            benimSira = false; durumCubugu.innerText = `Sıra ${isimlerListesi[data.idx]}'de...`; durumCubugu.style.color = "#aaa";
+            benimSira = false; durumCubugu.innerText = `Sıra...`; durumCubugu.style.color = "#aaa";
             siraParlamasiGuncelle(data.idx); startClientTimer(data.turnEndTime);
             btnSeriAc.disabled = true; btnCiftAc.disabled = true; btnYandanIptal.style.display = "none"; btnGeriTopla.disabled = true;
             desteTasDiv.draggable = false; desteTasDiv.disabled = true; document.getElementById('cop-left').classList.remove('yandan-alinabilir');
@@ -899,13 +967,69 @@
             renderMasa(data.perler); hamleYapildi = false; btnGeriTopla.disabled = true;
         });
 
+        // KESİN DÜZELTME: Tablo Çökme Engeli Eklendi (try-catch && kazananAdi mantığı düzeltildi)
         socket.on('oyunBitti', (data) => {
-            document.getElementById('bitis-ekrani').style.display = 'flex'; siraParlamasiGuncelle(-1); clearInterval(turnTimerInterval); document.getElementById('sure-kapsayici').style.display = 'none';
-            if (data.kazanan === -1) { document.getElementById('bitis-mesaji').innerText = "Oyun Berabere Bitti! Kimse Açamadı."; document.getElementById('bitis-mesaji').style.color = "#ecf0f1"; } 
-            else { document.getElementById('bitis-mesaji').innerText = data.kazanan === benimIndex ? "Tebrikler, Oyunu Sen Kazandın! 🏆" : `Oyun Bitti! Kazanan: ${isimlerListesi[data.kazanan]}`; document.getElementById('bitis-mesaji').style.color = data.kazanan === benimIndex ? "#d4af37" : "#e74c3c"; }
-            document.getElementById('bitis-sebebi').innerText = `Sebep: ${data.sebep}`;
-            let yazbozHTML = ''; data.skorlar.forEach(skor => { let renk = skor.puan > 0 ? '#e74c3c' : (skor.puan < 0 ? '#2ecc71' : '#d4af37'); yazbozHTML += `<div class="skor-satir"><span style="color:#eee">${skor.isim} <small style="color:#888; font-size:12px;">(${skor.durum})</small></span><span style="color:${renk}; font-weight:bold;">${skor.puan}</span></div>`; });
-            document.getElementById('yazboz-alani').innerHTML = yazbozHTML;
+            try {
+                document.getElementById('bitis-ekrani').style.display = 'flex'; 
+                siraParlamasiGuncelle(-1); 
+                clearInterval(turnTimerInterval); 
+                
+                let finalKazanan = data.kazananAdi || "Bilinmiyor";
+                
+                if (data.kazanan === -1) { 
+                    document.getElementById('bitis-mesaji').innerText = "Oyun Berabere Bitti! Kimse Açamadı."; 
+                    document.getElementById('bitis-mesaji').style.color = "#ecf0f1"; 
+                } else { 
+                    document.getElementById('bitis-mesaji').innerText = data.kazanan === benimIndex ? "Tebrikler, Oyunu Sen Kazandın! 🏆" : `Oyun Bitti! Kazanan: ${finalKazanan}`; 
+                    document.getElementById('bitis-mesaji').style.color = data.kazanan === benimIndex ? "#d4af37" : "#e74c3c"; 
+                }
+                
+                let sebepEl = document.getElementById('bitis-sebebi');
+                if(sebepEl) sebepEl.innerText = `Sebep: ${data.sebep || ""}`;
+                
+                if (data.isLastRound) {
+                    let btnSon = document.getElementById('btn-sonraki-el'); if(btnSon) btnSon.style.display = 'none';
+                    let btnDon = document.getElementById('btn-odaya-don'); if(btnDon) btnDon.innerText = 'Odaya Dön';
+                } else {
+                    let btnSon = document.getElementById('btn-sonraki-el');
+                    if (myPlayerId === currentRoomHostId) { if(btnSon) btnSon.style.display = 'block'; } else { if(btnSon) btnSon.style.display = 'none'; }
+                    let btnDon = document.getElementById('btn-odaya-don'); if(btnDon) btnDon.innerText = 'Lobiye Dön';
+                }
+                
+                let pTable = `<table style="width:100%; border-collapse:collapse; margin-top:15px; background:#1a1a1a; border-radius:8px; overflow:hidden;">`;
+                pTable += `<thead style="background:#0a0a0a; color:#d4af37; font-size:13px; text-transform:uppercase;"><tr>`;
+                pTable += `<th style="padding:12px; text-align:left;">Oyuncu</th>`;
+                pTable += `<th style="padding:12px; text-align:left;">Durum</th>`;
+                if(data.isEsli) pTable += `<th style="padding:12px; text-align:center;">Takım</th>`;
+                pTable += `<th style="padding:12px; text-align:right;">Puan</th>`;
+                pTable += `<th style="padding:12px; text-align:right; color:#f1c40f;">Toplam</th>`;
+                pTable += `</tr></thead><tbody>`;
+
+                if(data.skorlar && data.skorlar.length > 0) {
+                    data.skorlar.forEach(skor => {
+                        let r1 = skor.puan > 0 ? '#e74c3c' : (skor.puan < 0 ? '#2ecc71' : '#ecf0f1');
+                        let r2 = skor.overall > 0 ? '#e74c3c' : (skor.overall < 0 ? '#2ecc71' : '#ecf0f1');
+                        pTable += `<tr style="border-bottom:1px solid #333;">`;
+                        pTable += `<td class="yazboz-isim" style="padding:12px; font-weight:bold; color:#ecf0f1;">${skor.isim}</td>`;
+                        pTable += `<td style="padding:12px;"><span style="background:#222; color:#aaa; padding:4px 8px; border-radius:4px; font-size:12px;">${skor.durum}</span></td>`;
+                        if(data.isEsli) pTable += `<td style="padding:12px; text-align:center; color:${skor.team==='A Takımı'?'#3498db':'#e74c3c'};">${skor.team}</td>`;
+                        pTable += `<td style="padding:12px; text-align:right; font-weight:bold; color:${r1};">${skor.puan}</td>`;
+                        pTable += `<td style="padding:12px; text-align:right; font-weight:bold; color:${r2}; font-size:16px;">${skor.overall}</td>`;
+                        pTable += `</tr>`;
+                    });
+                } else {
+                    pTable += `<tr><td colspan="5" style="text-align:center; padding:12px; color:#e74c3c;">Skorlar hesaplanamadı!</td></tr>`;
+                }
+                pTable += `</tbody></table>`;
+                
+                let ybAlani = document.getElementById('yazboz-alani');
+                if(ybAlani) ybAlani.innerHTML = pTable;
+
+            } catch (err) {
+                console.error("Skor tablosu oluşturulurken hata:", err);
+                let ybAlani = document.getElementById('yazboz-alani');
+                if(ybAlani) ybAlani.innerHTML = "<div style='color:red;'>Tablo yüklenirken hata oluştu.</div>";
+            }
         });
 
         document.getElementById('btn-odaya-don').addEventListener('click', () => { document.getElementById('bitis-ekrani').style.display = 'none'; });

@@ -37,23 +37,26 @@ class Validator {
 
     static isRunValid(group, gameOkey) {
         if (group.length < 3 || group.length > 13) return false;
-        let effTiles = group.map(t => this.getEffectiveTile(t, gameOkey));
-        let normalTiles = effTiles.filter(t => !this.isOkey(t, gameOkey));
-        if (normalTiles.length === 0) return true;
-        
-        const targetColor = normalTiles[0].color;
-        if (normalTiles.some(t => t.color !== targetColor)) return false;
-
-        let vals = normalTiles.map(t => t.value).sort((a, b) => a - b);
-        let okeyCount = group.length - normalTiles.length;
-
-        let req = 0; 
-        for(let i=0; i<vals.length-1; i++){ 
-            let g = vals[i+1]-vals[i]-1; 
-            if(g < 0) return false; 
-            req += g; 
+        let targetColor = null; let firstNormalIdx = -1;
+        for (let i = 0; i < group.length; i++) {
+            let eff = this.getEffectiveTile(group[i], gameOkey);
+            if (!this.isOkey(eff, gameOkey)) {
+                if (!targetColor) { targetColor = eff.color; firstNormalIdx = i; }
+                else if (eff.color !== targetColor) return false;
+            }
         }
-        return req <= okeyCount;
+        if (!targetColor) return true; 
+        
+        let firstVal = this.getEffectiveTile(group[firstNormalIdx], gameOkey).value;
+        let startVal = firstVal - firstNormalIdx;
+        
+        if (startVal < 1 || startVal + group.length - 1 > 13) return false;
+
+        for (let i = 0; i < group.length; i++) {
+            let eff = this.getEffectiveTile(group[i], gameOkey);
+            if (!this.isOkey(eff, gameOkey)) { if (eff.value !== startVal + i) return false; }
+        }
+        return true;
     }
 
     static isGroupValid(group, gameOkey) { return this.isSetValid(group, gameOkey) || this.isRunValid(group, gameOkey); }
@@ -62,12 +65,9 @@ class Validator {
         if (groups.length === 0) return { success: false, message: "Açılacak grup yok!" };
         let totalScore = 0;
         for (let group of groups) {
-            // DÜZELTME: Açılış perleri için maksimum uzunluk artık 5!
             if (!isProcessing && group.length > 5) return { success: false, message: "Açılışta perler maksimum 5 taş uzunluğunda olabilir!" };
-            
             if (!this.isGroupValid(group, gameOkey)) return { success: false, message: "Geçersiz dizilim bulundu!" };
-            let effTiles = group.map(t => this.getEffectiveTile(t, gameOkey));
-            let normalTiles = effTiles.filter(t => !this.isOkey(t, gameOkey));
+            let normalTiles = group.map(t => this.getEffectiveTile(t, gameOkey)).filter(t => !this.isOkey(t, gameOkey));
             if (normalTiles.length === 0) continue; 
 
             let isSet = normalTiles.every(t => t.value === normalTiles[0].value);
@@ -80,29 +80,25 @@ class Validator {
                 totalScore += resultVals.reduce((a, b) => a + b, 0);
             }
         }
-        if (isProcessing) return { success: true, score: totalScore };
-        return totalScore >= 101 ? { success: true, score: totalScore } : { success: false, message: `Puan yetersiz: ${totalScore}/101` };
+        return { success: true, score: totalScore };
     }
 
     static calculatePairs(groups, gameOkey, isProcessing = false) {
-        if (!isProcessing && groups.length < 5) return { success: false, message: `İlk açılışta en az 5 çift açmalısınız!` };
         for (let group of groups) {
             if (!this.isPairValid(group, gameOkey)) return { success: false, message: "Geçersiz çift bulundu!" };
         }
-        return { success: true };
+        return { success: true, pairCount: groups.length };
     }
 
     static sortGroup(group, gameOkey) {
         if (group.length === 0) return group;
-        let effTiles = group.map(t => this.getEffectiveTile(t, gameOkey));
-        let normalTiles = effTiles.filter(t => !this.isOkey(t, gameOkey));
-        let rawNormalTiles = group.filter(t => !this.isOkey(this.getEffectiveTile(t, gameOkey), gameOkey));
-
+        let normalTiles = group.filter(t => !this.isOkey(this.getEffectiveTile(t, gameOkey), gameOkey));
         if (normalTiles.length === 0) return group;
-        let isSet = normalTiles.every(t => t.value === normalTiles[0].value);
+        
+        let isSet = normalTiles.every(t => this.getEffectiveTile(t, gameOkey).value === this.getEffectiveTile(normalTiles[0], gameOkey).value);
         if (isSet) { return [...group].sort((a, b) => { let cA = this.isOkey(this.getEffectiveTile(a, gameOkey), gameOkey) ? 'zz' : a.color; let cB = this.isOkey(this.getEffectiveTile(b, gameOkey), gameOkey) ? 'zz' : b.color; return cA.localeCompare(cB); }); }
 
-        let sortedRawNormals = [...rawNormalTiles].sort((a, b) => this.getEffectiveTile(a, gameOkey).value - this.getEffectiveTile(b, gameOkey).value);
+        let sortedRawNormals = [...normalTiles].sort((a, b) => this.getEffectiveTile(a, gameOkey).value - this.getEffectiveTile(b, gameOkey).value);
         let okeys = group.filter(t => this.isOkey(this.getEffectiveTile(t, gameOkey), gameOkey));
 
         let result = []; let expectedVal = this.getEffectiveTile(sortedRawNormals[0], gameOkey).value;
