@@ -74,7 +74,9 @@
         .dj-alt { display: flex; gap: 10px; align-items: center;}
         #dj-input { flex: 1; background: #0a0a0a; border: 1px solid #333; padding: 8px 12px; color: white; border-radius: 15px; font-size: 12px; outline: none;}
         #btn-dj-ekle { background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 15px; cursor: pointer; font-weight: bold; font-size: 12px;}
+        #btn-dj-ekle:hover { background: #415b76;}
         #btn-dj-atla { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 15px; cursor: pointer; font-weight: bold; font-size: 12px;}
+        #btn-dj-atla:hover { background: #c0392b;}
         .dj-ses-kontrol { display: flex; align-items: center; gap: 5px; font-size: 18px; color: #888;}
         #dj-ses { width: 60px; accent-color: #d4af37; }
 
@@ -191,7 +193,7 @@
 
     <div id="yt-player" style="position: absolute; top: -9999px; left: -9999px;"></div>
 
-    <div id="giris-ekrani" class="tam-ekran">
+    <div id="giris-ekrani" class="tam-ekran" style="display: none;">
         <div class="kutu">
             <h1>Area51 Okey</h1>
             <input type="text" id="oyuncu-isim-input" placeholder="Adını Gir" maxlength="12">
@@ -268,14 +270,12 @@
     </div>
 
     <div id="oyun-wrapper">
-        
         <div id="masa-container">
             <div id="ust-bilgi">
                 <div style="display: flex;">
                     <div id="durum-cubugu">Bağlanılıyor...</div>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button id="btn-oyunu-baslat" class="btn-gold" style="display:none; padding: 5px 15px; font-size: 13px;">Oyunu Başlat</button>
                     <button id="btn-masadan-ayril" class="btn-kirmizi">Masadan Ayrıl</button>
                 </div>
             </div>
@@ -411,6 +411,13 @@
         let currentRoomHostId = null; let currentOdaDurum = null; let isUpdatingRoom = false;
         let reqSeriPuan = 101; let reqCiftSayi = 5;
 
+        // Ekrana Dokunulduğunda Mobil Cihazlarda Tam Ekran İste
+        document.body.addEventListener('touchstart', () => {
+            if (window.innerWidth <= 768 && !document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(e => {});
+            }
+        }, {once: true});
+
         let ytPlayer; let ytPlayerReady = false; let currentSongPayload = null; let musicReceiveTime = 0;
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('yt-player', {
@@ -485,13 +492,30 @@
             }, 1000);
         }
 
-        document.addEventListener('dragend', () => { document.querySelectorAll('.tas').forEach(t => t.classList.remove('dragging')); draggedTas = null; });
-        function boyutlandir() { const masa = document.getElementById('masa-container'); const wrapper = document.getElementById('oyun-wrapper'); if(wrapper.style.display === 'none') return; let scale = (window.innerWidth * 0.95) / 1350; if (scale > 1) scale = 1; masa.style.transform = `scale(${scale})`; masa.style.marginBottom = `-${750 - (750 * scale)}px`; }
+        // GLOBAL SÜRÜKLEME TEMİZLEYİCİSİ (Tarayıcı Takılmasını Önler)
+        function cleanupDrag() { document.querySelectorAll('.tas.dragging').forEach(t => t.classList.remove('dragging')); document.querySelectorAll('.drag-over').forEach(t => t.classList.remove('drag-over')); document.getElementById('cop-bottom').classList.remove('drag-over'); draggedTas = null; }
+        window.addEventListener('mouseup', cleanupDrag); window.addEventListener('touchend', cleanupDrag);
+        document.addEventListener('dragend', cleanupDrag); 
+        
+        // GELİŞMİŞ MOBİL ÖLÇEKLENDİRME
+        function boyutlandir() { 
+            const masa = document.getElementById('masa-container'); const wrapper = document.getElementById('oyun-wrapper'); 
+            if(wrapper.style.display === 'none') return; 
+            let scale = window.innerWidth / 1350; 
+            if (window.innerWidth <= 768) { let scaleY = window.innerHeight / 750; scale = Math.min(scale, scaleY) * 0.95; } 
+            else { scale = (window.innerWidth * 0.95) / 1350; if (scale > 1) scale = 1; }
+            masa.style.transform = `scale(${scale})`; masa.style.marginBottom = `-${750 - (750 * scale)}px`; 
+        }
         window.addEventListener('resize', boyutlandir);
 
         let myPlayerId = localStorage.getItem('okey_playerId'); let myPlayerName = localStorage.getItem('okey_playerName');
         if (!myPlayerId) { myPlayerId = Math.random().toString(36).substr(2, 9); localStorage.setItem('okey_playerId', myPlayerId); }
-        if (myPlayerName) socket.emit('kimlikBildir', { playerId: myPlayerId, isim: myPlayerName }); else document.getElementById('giris-ekrani').style.display = 'flex';
+        
+        // YENİ: İsim daha önceden alınmışsa menü asla gözükmez!
+        if (myPlayerName) { 
+            document.getElementById('giris-ekrani').style.display = 'none'; 
+            socket.emit('kimlikBildir', { playerId: myPlayerId, isim: myPlayerName }); 
+        } else { document.getElementById('giris-ekrani').style.display = 'flex'; }
 
         document.getElementById('btn-kimlik-olustur').addEventListener('click', () => { let isim = document.getElementById('oyuncu-isim-input').value.trim(); if(isim) { localStorage.setItem('okey_playerName', isim); socket.emit('kimlikBildir', { playerId: myPlayerId, isim: isim }); document.getElementById('giris-ekrani').style.display = 'none'; } });
         
@@ -552,12 +576,13 @@
                     let p = data.players[targetIdx];
                     if (!p) { document.querySelector(`#${id} .isim-text`).innerText = "Bekleniyor"; document.querySelector(`#${id} .durum-text`).innerHTML = ""; return; }
                     document.querySelector(`#${id} .isim-text`).innerText = p.isim;
-                    let stat = p.ciftAcmisMi ? "<span style='color:#3498db'>Çift Açtı</span>" : (p.perAcmisMi ? "<span style='color:#f1c40f'>Seri Açtı</span>" : "");
+                    // YENİ: Etiketlerde açılan puanı yazma sistemi
+                    let stat = p.ciftAcmisMi ? `<span style='color:#3498db'>Çift Açtı (${p.acmaCift})</span>` : (p.perAcmisMi ? `<span style='color:#f1c40f'>Seri Açtı (${p.acmaPuani})</span>` : "");
                     document.querySelector(`#${id} .durum-text`).innerHTML = stat;
                 };
 
                 let myP = data.players[mIdx];
-                document.getElementById('isim-bottom').innerHTML = "Sen" + (myP && myP.ciftAcmisMi ? "<br><span style='font-size:11px;color:#3498db'>Çift Açtın</span>" : (myP && myP.perAcmisMi ? "<br><span style='font-size:11px;color:#f1c40f'>Seri Açtın</span>" : ""));
+                document.getElementById('isim-bottom').innerHTML = "Sen" + (myP && myP.ciftAcmisMi ? `<br><span style='font-size:11px;color:#3498db'>Çift Açtın (${myP.acmaCift})</span>` : (myP && myP.perAcmisMi ? `<br><span style='font-size:11px;color:#f1c40f'>Seri Açtın (${myP.acmaPuani})</span>` : ""));
                 setTag('etiket-right', (mIdx + 1) % 4); setTag('etiket-top', (mIdx + 2) % 4); setTag('etiket-left', (mIdx + 3) % 4);
             }
 
@@ -584,7 +609,10 @@
                 reqCiftSayi = isKat ? (data.currentMaxCift || 4) + 1 : 5;
                 document.getElementById('hedef-seri').innerText = isKat ? `Min: ${reqSeriPuan}` : "";
                 document.getElementById('hedef-cift').innerText = `/${reqCiftSayi}`;
-                siraParlamasiGuncelle(-1); clearInterval(turnTimerInterval);
+                
+                // YENİ: Süre senkronizasyonu sayfa yenilemede geri getirildi.
+                if(data.turnEndTime) startClientTimer(data.turnEndTime);
+                siraParlamasiGuncelle(data.siraKimde);
             }
         });
 
@@ -934,12 +962,12 @@
             benimSira = true; btnYandanIptal.style.display = "none"; playTurnSound(); siraParlamasiGuncelle(benimIndex); startClientTimer(data.turnEndTime);
             hamleYapildi = false; btnGeriTopla.disabled = true;
             if (data.ilkTurMu) { durumCubugu.innerText = "OYUN BAŞLADI: Sağ tarafa bir taş at."; durumCubugu.style.color = "#f39c12"; desteTasDiv.draggable = false; desteTasDiv.disabled = true;} 
-            else { durumCubugu.innerText = "SIRA SENDE! Bankaya Dokun veya Soldan Al."; durumCubugu.style.color = "#2ecc71"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; if (data.soldanGelenTas) document.getElementById('cop-left').classList.add('yandan-alinabilir'); }
+            else { durumCubugu.innerText = `SIRA SENDE! (${isimlerListesi[benimIndex]})`; durumCubugu.style.color = "#2ecc71"; desteTasDiv.draggable = true; desteTasDiv.disabled = false; if (data.soldanGelenTas) document.getElementById('cop-left').classList.add('yandan-alinabilir'); }
             otomatikPuanHesapla(); 
         });
 
         socket.on('siraBaskasinda', (data) => {
-            benimSira = false; durumCubugu.innerText = `Sıra...`; durumCubugu.style.color = "#aaa";
+            benimSira = false; durumCubugu.innerText = `Sıra ${isimlerListesi[data.idx]}'de...`; durumCubugu.style.color = "#aaa";
             siraParlamasiGuncelle(data.idx); startClientTimer(data.turnEndTime);
             btnSeriAc.disabled = true; btnCiftAc.disabled = true; btnYandanIptal.style.display = "none"; btnGeriTopla.disabled = true;
             desteTasDiv.draggable = false; desteTasDiv.disabled = true; document.getElementById('cop-left').classList.remove('yandan-alinabilir');
@@ -967,17 +995,16 @@
             renderMasa(data.perler); hamleYapildi = false; btnGeriTopla.disabled = true;
         });
 
-        // KESİN DÜZELTME: Tablo Çökme Engeli Eklendi (try-catch && kazananAdi mantığı düzeltildi)
+        // KESİN DÜZELTME: Tablo Çökme Engeli tamamen temizlendi
         socket.on('oyunBitti', (data) => {
             try {
                 document.getElementById('bitis-ekrani').style.display = 'flex'; 
-                siraParlamasiGuncelle(-1); 
-                clearInterval(turnTimerInterval); 
+                siraParlamasiGuncelle(-1); clearInterval(turnTimerInterval); 
                 
                 let finalKazanan = data.kazananAdi || "Bilinmiyor";
                 
                 if (data.kazanan === -1) { 
-                    document.getElementById('bitis-mesaji').innerText = "Oyun Berabere Bitti! Kimse Açamadı."; 
+                    document.getElementById('bitis-mesaji').innerText = "Deste Bitti!"; 
                     document.getElementById('bitis-mesaji').style.color = "#ecf0f1"; 
                 } else { 
                     document.getElementById('bitis-mesaji').innerText = data.kazanan === benimIndex ? "Tebrikler, Oyunu Sen Kazandın! 🏆" : `Oyun Bitti! Kazanan: ${finalKazanan}`; 
